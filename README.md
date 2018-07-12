@@ -9,9 +9,11 @@ Please note that I'm not a programmer by trade, also this utility is not intende
 
 ## Installation
 
-For now there is no installer yet, but you can simply copy and paste below command on ssh for installation:
+For now there is no installer yet, but you can simply copy and paste the single line below command on ssh for installation:
 
+```
 fetch https://github.com/JRGTH/bemanager/archive/master.zip && tar -xf master.zip --strip-components 1 bemanager-master/bemanager && chmod 555 bemanager && mv bemanager /usr/local/sbin/bemanager; rehash
+```
 
 ## Screenshot
 
