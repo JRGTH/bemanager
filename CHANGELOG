@@ -1,0 +1,41 @@
+========================================================================
+= Boot Environments TUI Manager, wrapper around FreeBSD beadm utility. =
+= A simple utility for managing, backup and restore Boot Environments. =
+========================================================================
+Version    Description
+
+0.4.2......Some code indentation changes.
+0.4.1......Some text adjustments.
+0.4.0......Generate current date and time function.
+0.3.9......Removed redundant code.
+0.3.8......Check user defined backup mode variables.
+0.3.7......Don't ignore backup mode in statements.
+0.3.6......Start backup mode dialog if config value incorrect.
+0.3.5......Allow for zfs send/receive extra parameters.
+0.3.4......Minor code changes.
+0.3.3......Minor wording changes.
+0.3.2......Use uppercase for config file variables.
+0.3.1......Set SSH parameters in a single line for flexibility.
+0.3.0......Minor text edits.
+0.2.9......Replaced command substitution for parenthesis.
+0.2.8......Allow to skip backup mode dialog.
+0.2.7......Generate detailed configuration file.
+0.2.6......Hardcoded name and version to -v, --version command.
+0.2.5......Don't generate custom cdialog rc, use defaults instead.
+0.2.4......Minor code optimizations.
+0.2.3......Move beadm dependency search to top.
+0.2.2......Switch to inputbox in cdialog for initial configuration.
+0.2.1......Minor wording changes.
+0.2.0......Allow user specified compress/decompress method.
+0.1.9......Display boot environment mountpoints.
+0.1.8......Allow user defined SSH extra parameters.
+0.1.7......Removed skip known host.
+0.1.6......Hardcoded mount name prefix.
+0.1.5......Set -e and code optimizations.
+0.1.4......Display version info if requested.
+0.1.3......Overall code improvements.
+0.1.2......Move config file location to default.
+0.1.1......Add missing function comments, and code improvements.
+0.1.0......Create config directory if missing.
+0.0.9......Minor wording changes.
+0.0.8......Use own config file, enter BETA stage.

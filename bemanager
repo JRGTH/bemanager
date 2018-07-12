@@ -1,0 +1,669 @@
+#!/bin/sh -e
+# bemanager
+# Boot Environments TUI Manager, wrapper around FreeBSD beadm utility.
+# A simple utility for manage, backup and restore Boot Environments.
+# License: BSD2CLAUSE (BSD 2-clause Simplified License).
+# Debug script.
+#set -x
+
+# Copyright (c) 2018 José Rivera (JoseMR)
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that following conditions are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS 'AS IS' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Set environment.
+PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:${PATH}
+
+# Display version info if requested.
+if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
+	echo "bemanager 0.4.2b"
+	exit 0
+fi
+
+# Check if we have beadm package installed.
+if ! pkg info | grep -qw "beadm"; then
+	if [ ! -f /usr/local/sbin/beadm ]; then
+		echo "Error: Required package beadm not found."
+		exit 1
+	fi
+fi
+
+# Check if we have cdialog package installed.
+if ! pkg info | grep -qw "cdialog"; then
+	if [ ! -f /usr/local/bin/cdialog ]; then
+		echo "Error: Required package cdialog not found."
+		exit 1
+	fi
+fi
+
+# Set global variables.
+SCRIPTNAME=$(basename $0)
+APP_VERSION=$(beadm version)
+CONFIG_PATH="/usr/local/etc"
+CONFIG_FILE="${CONFIG_PATH}/${SCRIPTNAME}.conf"
+PRD_NAME="Boot Environments"
+APP_NAME="Manager for"
+DEFAULT_COMPRESS="xz -0 -v"
+DEFAULT_DECOMPRESS="xz -c -d -v"
+ARCHIVE_EXT="zfs"
+MOUNT_PREFIX="_BE"
+ROOT_FS=$(mount | awk '/ \/ / {print $1}')
+ZROOT_POOL=$(echo ${ROOT_FS} | awk -F '/' '{print $1}')
+ZROOT_DATASET=$(echo ${ROOT_FS} | awk -F '/' '{print $2}')
+
+# Create temporary file, default to /tmp.
+TMPFILE=/tmp/${SCRIPTNAME}.$$
+
+# Remove temporary file on various signals.
+trap "rm -f ${TMPFILE}" 0 1 2 3 5 6 9 15
+
+runtime_configuration()
+{
+	# Generate initial configuration file.
+	if [ ! -f "${CONFIG_FILE}" ]; then
+		cat << EOF > ${CONFIG_FILE}
+# Run-time configuration file for ${SCRIPTNAME}.
+# Auto-generated file from ${SCRIPTNAME}.
+
+# Path where to save boot environments backup files, i.e "/mnt/tank/zfsbackups".
+ZFS_BACKUP_PATH=""
+
+# Path to use for mounting boot environments, i.e "/mnt".
+ZFS_MOUNT_PATH=""
+
+# Skip backup mode dialog, set between "local" or "remote" backup modes.  
+ZFS_BACKUP_MODE=""
+
+# Set zfs send extra parameters, i.e "-v" default empty.
+ZFS_SEND_PARAMS=""
+
+# Set zfs receive extra parameters, i.e "-v" default empty.
+ZFS_RECV_PARAMS=""
+
+# Set SSH parameters, i.e "root@192.168.1.250".
+SSH_NET_PARAMS=""
+
+# Set custom compression method, i.e "xz -9 -v --threads=0", empty for defaults.
+BE_COMPRESS_METHOD=""
+
+# Set custom decompression method, i.e "xz -c -d -v --threads=0", empty for defaultf.
+BE_DECOMPRESS_METHOD=""
+EOF
+
+		# Start the initial configuration dialog helper.
+		# Use --inputbox here to allow input scrolling.
+
+		# Remove config file on various signals.
+		trap "rm -f ${CONFIG_FILE}" 1 2 3 5 6 9 15
+
+		# Ask for the full path for storing Boot Environments files.
+		cdialog --backtitle "${PRD_NAME} ${APP_NAME} ${APP_VERSION}" --title "Boot Environments Backup Path" \
+		--inputbox "Please enter the full path for storing Boot Environments files." 8 70 \
+		2>${TMPFILE}
+		BACKUPPATH=$(cat ${TMPFILE} | tr -d ' ')
+
+		# Ask for the full path for mounting Boot Environments.
+		cdialog --backtitle "${PRD_NAME} ${APP_NAME} ${APP_VERSION}" --title "Boot Environments Mount Path" \
+		--inputbox "Please enter the full path for mounting Boot Environments." 8 70 \
+		2>${TMPFILE}
+		MOUNTPATH=$(cat ${TMPFILE} | tr -d ' ')
+
+		# Ask for the ssh parameters.
+		cdialog --backtitle "${PRD_NAME} ${APP_NAME} ${APP_VERSION}" --title "SSH Parameters" \
+		--inputbox "Please enter the SSH parameters here." 8 70 \
+		2>${TMPFILE}
+		SSHPARAMS=$(cat ${TMPFILE})
+
+		# Write configuration file.
+		echo "Generating initial configuration..."
+		if [ -n "${BACKUPPATH}" ]; then
+			sysrc -f ${CONFIG_FILE} ZFS_BACKUP_PATH="${BACKUPPATH}"
+		else
+			echo "Error: ZFS Backup Path can't be left blank."
+			rm -f ${CONFIG_FILE}
+			pause
+			exit 1
+		fi
+		if [ -n "${MOUNTPATH}" ]; then
+			sysrc -f ${CONFIG_FILE} ZFS_MOUNT_PATH="${MOUNTPATH}"
+		else
+			echo "Error: ZFS BE Mount Path can't be left blank."
+			rm -f ${CONFIG_FILE}
+			pause
+			exit 1
+		fi
+		if [ -n "${SSHPARAMS}" ]; then
+			sysrc -f ${CONFIG_FILE} SSH_NET_PARAMS="${SSHPARAMS}"
+		fi
+		runtime_variables
+	else
+		runtime_variables
+	fi
+}
+
+runtime_variables()
+{
+	# Initialize run-time variables once.
+	if [ "${RUNTIMEVAR}" != 1 ]; then
+		echo "Initializing..."
+		BE_MOUNTPATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_MOUNT_PATH)
+		ZFSBACKUP_PATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BACKUP_PATH)
+		ZFSBACKUP_MODE=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BACKUP_MODE)
+		ZFS_SENDPARAM=$(sysrc -f ${CONFIG_FILE} -qn ZFS_SEND_PARAMS)
+		ZFS_RECVPARAM=$(sysrc -f ${CONFIG_FILE} -qn ZFS_RECV_PARAMS)
+		SSH_PARAMS=$(sysrc -f ${CONFIG_FILE} -qn SSH_NET_PARAMS)
+		COMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_COMPRESS_METHOD)
+		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_DECOMPRESS_METHOD)
+		SSH_CMD="ssh ${SSH_PARAMS}"
+		RUNTIMEVAR=1
+	fi
+}
+
+pause()
+{
+	read -p "Press enter to continue!" a
+}
+
+initialize_variables()
+{
+	# Always update this variables.
+	BOOTENV_LIST=$(beadm list -H | awk '{print $1}')
+	ZROOTSNAP_LIST=$(zfs list -t snapshot | grep ${ZROOT_POOL} | cut -d"/" -f3 | awk '{print $1}')
+}
+
+menu_activate_be()
+{
+	TOPIC="activate"
+	ITEMSTATS=1
+	BOOTENVLIST=${BOOTENV_LIST}
+	menu_select_be
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	RETURN=1
+
+	# Activate selected Boot Environment.
+	beadm activate ${BOOTENV_ITEM}
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} activated successfully!"
+		echo ${msg}
+		echo "Please reboot now to boot from the recently activated Boot Environment!"
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to activate ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+}
+
+menu_create_be()
+{
+	TOPIC="create"
+	TITLE="\nPlease enter a valid Boot Environment name here for your reference."
+	menu_be_name
+	echo "==> Trying to ${TOPIC} ${BOOTENV_NAME} Boot Environment..."
+	RETURN=1
+
+	# Create new Boot Environment.
+	beadm create ${BOOTENV_NAME}
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_NAME} created successfully!"
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to create ${BOOTENV_NAME} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+}
+
+menu_mount_be()
+{
+	TOPIC="mount"
+	ITEMSTATS=1
+	BOOTENVLIST=${BOOTENV_LIST}
+	menu_select_be
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+
+	DIR="${BE_MOUNTPATH}/${BOOTENV_ITEM}${MOUNT_PREFIX}"
+	if ! mount | grep -q ${DIR}; then
+		mkdir -p ${DIR}
+		RETURN=1
+
+		# Mount selected Boot Environment.
+		beadm mount ${BOOTENV_ITEM} ${DIR}
+
+		RETURN=$?
+		if [ "${RETURN}" -eq 0 ]; then
+			msg="Boot Environment ${BOOTENV_ITEM} mounted successfully!"
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			pause
+			menu_main
+		else
+			msg="Error: Unable to mount ${BOOTENV_ITEM} Boot Environment."
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			if [ ! $(ls -A ${DIR} 2>/dev/null) ]; then
+				# Delete directory only if empty.
+				rm -Rf ${DIR}
+			fi
+			pause
+			exit 1
+		fi
+	else
+		echo "Mount ${DIR} already exist."
+		pause
+		exit 1
+	fi
+}
+
+menu_umount_be()
+{
+	TOPIC="unmount"
+	ITEMSTATS=1
+	BOOTENVLIST=${BOOTENV_LIST}
+	menu_select_be
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+
+	DIR="${BE_MOUNTPATH}/${BOOTENV_ITEM}${MOUNT_PREFIX}"
+	if [ -d "${DIR}" ]; then
+		RETURN=1
+
+		# Unmount selected Boot Environment.
+		beadm umount -f ${BOOTENV_ITEM}
+
+		RETURN=$?
+		if [ "${RETURN}" -eq 0 ]; then
+			if [ ! $(ls -A ${DIR} 2>/dev/null) ]; then
+				# Delete directory only if empty.
+				rm -Rf ${DIR}
+			fi
+			msg="Boot Environment ${BOOTENV_ITEM} unmounted successfully!"
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			pause
+			menu_main
+		else
+			msg="Error: Unable to unmount ${BOOTENV_ITEM} Boot Environment."
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			pause
+			exit 1
+		fi
+	else
+		echo "Mount ${DIR} does not exist."
+		pause
+		exit 1
+	fi
+}
+
+menu_rename_be()
+{
+	TOPIC="rename"
+	ITEMSTATS=1
+	BOOTENVLIST=${BOOTENV_LIST}
+	menu_select_be
+	TITLE="\nPlease enter a new Boot Environment name for ${BOOTENV_ITEM}."
+	menu_be_name
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	RETURN=1
+
+	# Rename selected Boot Environment.
+	beadm rename ${BOOTENV_ITEM} ${BOOTENV_NAME}
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} renamed to ${BOOTENV_NAME} successfully!"
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to rename ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+	
+}
+
+menu_backup_be()
+{	
+	# Ask for backup mode and check directory.
+	menu_backup_mode
+	backup_dir_check
+
+	TOPIC="backup"
+	ITEMSTATS=0
+	BOOTENVLIST=${ZROOTSNAP_LIST}
+	menu_select_be
+	generate_backup_name
+
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	RETURN=1
+
+	# Send compressed be/snapshot to file. 
+	BE_SOURCE=${ZROOT_POOL}/${ZROOT_DATASET}/${BOOTENV_ITEM}
+	BE_TARGET=${ZFSBACKUP_PATH}/${BEBACKUP_NAME}
+	if [ -z "${COMPRESS_METHOD}" ]; then
+		# Set the default compression method.
+		COMPRESS_METHOD=${DEFAULT_COMPRESS}
+	fi
+	if [ "${BACKUP_MODE}" = 1 ]; then
+		# Local backup target file.
+		zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${COMPRESS_METHOD} > ${BE_TARGET}
+	elif [ "${BACKUP_MODE}" = 2 ]; then
+		# Network backup target file.
+		echo "Saving to network location, this might take a while please wait..."
+		zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "${COMPRESS_METHOD} > ${BE_TARGET}"
+	fi
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} saved to ${ZFSBACKUP_PATH}/${BEBACKUP_NAME} successfully!"
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to ${TOPIC} ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+}
+
+menu_restore_be()
+{
+	# Ask for backup mode and check directory.
+	menu_backup_mode
+	backup_dir_check
+
+	get_current_date
+	TOPIC="restore"
+	ITEMSTATS=0
+	BOOTENVLIST=${ZFSBACKUP_DIR}
+	RESTORE_NAME=${TOPIC}
+	menu_select_be
+
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} from file..."
+	RETURN=1
+
+	# Receive compressed be/snapshot from file.
+	BE_SOURCE=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}
+	BE_TARGET=${ZROOT_POOL}/${ZROOT_DATASET}/${RESTORE_NAME}-${DATE}@${DATE}
+	if [ -z "${DECOMPRESS_METHOD}" ]; then
+		# Set the default decompression method.
+		DECOMPRESS_METHOD=${DEFAULT_DECOMPRESS}
+	fi
+	if [ "${BACKUP_MODE}" = 1 ]; then
+		# Local restore from file.
+		${DECOMPRESS_METHOD} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+	elif [ "${BACKUP_MODE}" = 2 ]; then
+		# Remote restore from file.
+		echo "Restoring from network location, this might take a while please wait..."
+		${SSH_CMD} "${DECOMPRESS_METHOD} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+	fi
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} restored to ${ZROOT_POOL}/${ZROOT_DATASET}/${RESTORE_NAME}-${DATE} successfully!"
+		echo ${msg}
+		echo "Please activate restored Boot Environment now so it will take effect after reboot!"
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to restore ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+}
+
+menu_destroy_be()
+{
+	ITEMSTATS=1
+	BOOTENVLIST=${BOOTENV_LIST}
+	menu_select_be
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	RETURN=1
+
+	# Destroy the selected Boot Environment.
+	beadm destroy -F ${BOOTENV_ITEM}
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} destroyed successfully!"
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to destroy ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+}
+
+backup_dir_check()
+{
+	# Check if the backup directory has been defined and is accessible.
+	if [ "${BACKUP_MODE}" = 1 ]; then
+		if [ -z "${ZFSBACKUP_PATH}" ]; then
+			echo "Error: ZFS BE backup directory is undefined."
+			echo "Please check ${CONFIG_FILE} file."
+			pause
+			exit 1
+		elif [ ! -d "${ZFSBACKUP_PATH}" ]; then
+			echo "Error: ZFS BE backup directory not found."
+			echo "Please make sure the backup path exist and is accessible."
+			pause
+			exit 1
+		fi
+		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH})
+	elif [ "${BACKUP_MODE}" = 2 ]; then
+		if [ -z "${SSH_PARAMS}" ]; then
+			echo "Error: SSH parameters are undefined."
+			echo "Please check ${CONFIG_FILE} file."
+			pause
+			exit 1
+		else
+			NETWORK_PATH=$(${SSH_CMD} "ls ${ZFSBACKUP_PATH} >/dev/null"; echo $?)
+			if [ "${NETWORK_PATH}" != 0 ]; then
+				echo "Error: Network path not found."
+				echo "Please make sure the network path exist and is accessible on the remote host."
+				pause
+				exit 1
+			else
+				ZFSBACKUP_DIR=$(${SSH_CMD} "ls ${ZFSBACKUP_PATH}")
+			fi
+		fi
+	fi
+}
+
+generate_backup_name()
+{
+	# Generate the backup file name based on the seleted Boot Environment.
+	get_current_date
+	BENAME=$(echo ${BOOTENV_ITEM} | cut -d"@" -f1 | awk '{print $1}')
+	BEBACKUP_NAME=${BENAME}-${DATE}.${ARCHIVE_EXT}
+}
+
+get_current_date()
+{
+	# Get current date and time.
+	DATE=$(date +%Y-%m-%d-%H%M%S)
+}
+
+menu_backup_mode()
+{
+	# Check for user defined parameters.
+	if [ "${ZFSBACKUP_MODE}" = "local" ]; then
+		BACKUP_MODE=1
+	elif [ "${ZFSBACKUP_MODE}" = "remote" ]; then
+		BACKUP_MODE=2
+	else
+		BACKUP_MODE=""
+	fi
+
+	if [ -z "${BACKUP_MODE}" ]; then
+		# Ask for the backup mode.
+		cdialog --backtitle "${PRD_NAME} ${APP_NAME} ${APP_VERSION}" --title "Backup mode selection menu" \
+		--radiolist "Select the backup mode, default is Local Backup." 10 50 4 \
+		1 "Local System Backup" on \
+		2 "Remote System Backup" off \
+		2>${TMPFILE}
+		if [ $? -ne 0 ]; then
+			exit 0
+		fi
+		BACKUP_MODE=$(cat ${TMPFILE})
+	fi	
+}
+
+get_be_status()
+{
+	# Get Boot Environments status information.
+	BOOTENV_STATUS=$(beadm list -H | awk '{ print $1,$2,$3 }' | grep ${BE} | awk '{ print $2,$3 }')
+}
+
+get_be_list()
+{
+	# List Boot Environments.
+	VAL=""
+	local BE
+	for BE in ${BOOTENVLIST}; do
+		VAL="${VAL} ${BE}"
+	done
+	VAL=$(echo ${VAL} | tr ' ' '\n')
+}
+
+menu_select_be()
+{
+	# Build the Boot Environments menu.
+	get_be_list
+	BE="${VAL}"
+	list=""
+	items=0
+	for BE in ${BE}; do
+		if [ "${ITEMSTATS}" != 0 ]; then
+			get_be_status ${BE}
+			desc="Status: ${BOOTENV_STATUS}"
+			list="${list} ${BE} '${desc}' off"
+		else
+			list="${list} ${BE} '' off"
+		fi
+		items=$((${items} + 1))
+	done
+
+	if [ "${items}" -ge 10 ]; then
+		items=10
+		menuheight=20
+	else
+		menuheight=10
+		menuheight=$((${menuheight} + ${items}))
+	fi
+
+	if [ "${items}" -eq 0 ]; then
+		eval "cdialog --title 'Select Boot Environment' --msgbox 'No Boot Environments available!' 5 60" \
+		2>${TMPFILE}
+		exit 1
+	fi
+
+	eval "cdialog --backtitle '${PRD_NAME} ${APP_NAME} ${APP_VERSION}' --title 'Select Boot Environment' \
+		--radiolist 'Select any Boot Environment you which to ${TOPIC}, use [up] [down] keys to navigate the menu then select a item with the [spacebar].' \
+		${menuheight} 80 ${items} ${list}" \
+		2>${TMPFILE}
+	if [ $? -ne 0 ]; then
+		exit 0
+	fi
+
+	BOOTENV_ITEM=$(cat ${TMPFILE})
+	if [ -z "${BOOTENV_ITEM}" ]; then
+		menu_select_be
+	fi
+}
+
+menu_be_name()
+{
+	# Ask for new Boot Environment name.
+	cdialog --backtitle "${PRD_NAME} ${APP_NAME} ${APP_VERSION}" --title "Boot Environment Name" \
+	--inputbox "${TITLE}" 8 70 \
+	2>${TMPFILE}
+	if [ $? -ne 0 ]; then
+		exit 0
+	fi
+
+	BOOTENV_NAME=$(cat ${TMPFILE} | tr -d ' ')
+	if [ -z "${BOOTENV_NAME}" ]; then
+		menu_be_name
+	fi
+}
+
+menu_main()
+{
+	# Initialize variables and display the main menu.
+	runtime_configuration
+	initialize_variables
+
+	while :; do
+		cdialog --backtitle "${PRD_NAME} ${APP_NAME} ${APP_VERSION}" --clear --title "Boot Environments Manager" --cancel-label "Exit" --menu "" 14 50 10 \
+		"1" "Activate Boot Environment" \
+		"2" "Create Boot Environment" \
+		"3" "Mount Boot Environment" \
+		"4" "Unmount Boot Environment" \
+		"5" "Rename Boot Environment" \
+		"6" "Backup Boot Environment" \
+		"7" "Restore Boot Environment" \
+		"8" "Destroy Boot Environment" \
+		2>${TMPFILE}
+		if [ $? -ne 0 ]; then
+			exit 0
+		fi
+		choice=$(cat "${TMPFILE}")
+		case "${choice}" in
+			1) menu_activate_be;;
+			2) menu_create_be;;
+			3) menu_mount_be;;
+			4) menu_umount_be;;
+			5) menu_rename_be;;
+			6) menu_backup_be;;
+			7) menu_restore_be;;
+			8) menu_destroy_be;;
+		esac
+	done
+}
+menu_main
