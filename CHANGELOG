@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.4.3......Get current date after Boot Environment selection.
 0.4.2......Some code indentation changes.
 0.4.1......Some text adjustments.
 0.4.0......Generate current date and time function.
