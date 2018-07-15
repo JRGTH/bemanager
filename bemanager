@@ -33,12 +33,12 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:${PATH}
 
 # Display version info if requested.
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
-	echo "bemanager 0.4.3b"
+	echo "bemanager 0.4.4b"
 	exit 0
 fi
 
 # Check if we have beadm package installed.
-if ! pkg info | grep -qw "beadm"; then
+if ! pkg info -qi beadm >/dev/null; then
 	if [ ! -f /usr/local/sbin/beadm ]; then
 		echo "Error: Required package beadm not found."
 		exit 1
@@ -46,7 +46,7 @@ if ! pkg info | grep -qw "beadm"; then
 fi
 
 # Check if we have cdialog package installed.
-if ! pkg info | grep -qw "cdialog"; then
+if ! pkg info -qi cdialog >/dev/null; then
 	if [ ! -f /usr/local/bin/cdialog ]; then
 		echo "Error: Required package cdialog not found."
 		exit 1
