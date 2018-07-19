@@ -32,7 +32,7 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:${PATH}
 
 # Display version info if requested.
-VERSION="0.4.7b"
+VERSION="0.4.8b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -66,7 +66,20 @@ ARCHIVE_EXT="zfs"
 MOUNT_PREFIX="_BE"
 ROOT_FS=$(mount | awk '/ \/ / {print $1}')
 ZROOT_POOL=$(echo ${ROOT_FS} | awk -F '/' '{print $1}')
-ZROOT_DATASET=$(echo ${ROOT_FS} | awk -F '/' '{print $2}')
+BOOT_FS=$(zpool list -H -o bootfs ${ZROOT_POOL})
+ZROOT_DATASET=$(echo ${BOOT_FS} | sed 's|/[^/]*$||')
+
+# Check if this system is Boot Environments compliant.
+if echo "${ROOT_FS}" | grep -q -m 1 -E "^/dev/"; then
+	echo "Error: This system does not boot from ZFS pool."
+	exit 1
+elif [ $(echo ${ROOT_FS} | awk -F '/' '{print NF}') -lt 3 ]; then
+	echo "Error: This system is not configured for boot environments."
+	exit 1
+elif [ -z "${BOOT_FS}" -o "${BOOTFS}" = "-" ]; then
+	echo "Error: ZFS boot pool '${ZROOT_POOL}' has unset 'bootfs' property."
+	exit 1
+fi
 
 # Create temporary file, default to /tmp.
 TMPFILE=/tmp/${SCRIPTNAME}.$$
@@ -185,7 +198,7 @@ initialize_variables()
 {
 	# Always update this variables.
 	BOOTENV_LIST=$(beadm list -H | awk '{print $1}')
-	ZROOTSNAP_LIST=$(zfs list -H -r -t snapshot ${ZROOT_POOL} | cut -d"/" -f3 | awk '{print $1}')
+	ZROOTSNAP_LIST=$(zfs list -H -r -t snapshot ${BOOT_FS} | cut -d'/' -f3 | awk '{print $1}')
 }
 
 menu_activate_be()
@@ -372,7 +385,7 @@ menu_backup_be()
 	RETURN=1
 
 	# Send compressed be/snapshot to file. 
-	BE_SOURCE=${ZROOT_POOL}/${ZROOT_DATASET}/${BOOTENV_ITEM}
+	BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}
 	BE_TARGET=${ZFSBACKUP_PATH}/${BEBACKUP_NAME}
 	if [ -z "${COMPRESS_METHOD}" ]; then
 		# Set the default compression method.
@@ -421,7 +434,7 @@ menu_restore_be()
 
 	# Receive compressed be/snapshot from file.
 	BE_SOURCE=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}
-	BE_TARGET=${ZROOT_POOL}/${ZROOT_DATASET}/${RESTORE_NAME}-${DATE}@${DATE}
+	BE_TARGET=${ZROOT_DATASET}/${RESTORE_NAME}-${DATE}@${DATE}
 	if [ -z "${DECOMPRESS_METHOD}" ]; then
 		# Set the default decompression method.
 		DECOMPRESS_METHOD=${DEFAULT_DECOMPRESS}
@@ -437,9 +450,9 @@ menu_restore_be()
 
 	RETURN=$?
 	if [ "${RETURN}" -eq 0 ]; then
-		msg="Boot Environment ${BOOTENV_ITEM} restored to ${ZROOT_POOL}/${ZROOT_DATASET}/${RESTORE_NAME}-${DATE} successfully!"
+		msg="Boot Environment ${BOOTENV_ITEM} restored to ${ZROOT_DATASET}/${RESTORE_NAME}-${DATE} successfully!"
 		echo ${msg}
-		echo "Please activate restored Boot Environment now so it will take effect after reboot!"
+		echo "Please activate the restored Boot Environment now so it will take effect after reboot!"
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 		pause
 		menu_main
