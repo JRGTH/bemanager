@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.4.6......Search zroot related snapshots only.
 0.4.5......Use -I instead -i on pkg info.
 0.4.4......Search for dependencies directly.
 0.4.3......Get current date after Boot Environment selection.
