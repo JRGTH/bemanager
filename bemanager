@@ -32,7 +32,7 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:${PATH}
 
 # Display version info if requested.
-VERSION="0.4.6b"
+VERSION="0.4.7b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -185,7 +185,7 @@ initialize_variables()
 {
 	# Always update this variables.
 	BOOTENV_LIST=$(beadm list -H | awk '{print $1}')
-	ZROOTSNAP_LIST=$(zfs list -t snapshot | grep -F ${ZROOT_POOL}/${ZROOT_DATASET} | cut -d"/" -f3 | awk '{print $1}')
+	ZROOTSNAP_LIST=$(zfs list -H -r -t snapshot ${ZROOT_POOL} | cut -d"/" -f3 | awk '{print $1}')
 }
 
 menu_activate_be()

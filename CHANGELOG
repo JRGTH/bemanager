@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.4.7......Directly search for zroot related snapshots.
 0.4.6......Search zroot related snapshots only.
 0.4.5......Use -I instead -i on pkg info.
 0.4.4......Search for dependencies directly.
