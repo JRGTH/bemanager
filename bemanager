@@ -32,7 +32,7 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:${PATH}
 
 # Display version info if requested.
-VERSION="0.4.8b"
+VERSION="0.4.9b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -465,8 +465,38 @@ menu_restore_be()
 	fi
 }
 
+menu_snapshot_be()
+{
+	TOPIC="snapshot"
+	ITEMSTATS=1
+	BOOTENVLIST=${BOOTENV_LIST}
+	menu_select_be
+	DATE=$(date +%Y-%m-%d-%H:%M:%S)
+	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	RETURN=1
+
+	# Snapshot selected Boot Environment.
+	beadm create ${BOOTENV_ITEM}@${DATE}
+
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC} successfully!"
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		menu_main
+	else
+		msg="Error: Unable to ${TOPIC} ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		pause
+		exit 1
+	fi
+}
+
 menu_destroy_be()
 {
+	TOPIC="destroy"
 	ITEMSTATS=1
 	BOOTENVLIST=${BOOTENV_LIST}
 	menu_select_be
@@ -653,7 +683,7 @@ menu_main()
 	initialize_variables
 
 	while :; do
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --clear --title "Boot Environments Manager" --cancel-label "Exit" --menu "" 14 50 10 \
+		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --clear --title "Boot Environments Manager" --cancel-label "Exit" --menu "" 15 50 10 \
 		"1" "Activate Boot Environment" \
 		"2" "Create Boot Environment" \
 		"3" "Mount Boot Environment" \
@@ -661,7 +691,8 @@ menu_main()
 		"5" "Rename Boot Environment" \
 		"6" "Backup Boot Environment" \
 		"7" "Restore Boot Environment" \
-		"8" "Destroy Boot Environment" \
+		"8" "Snapshot Boot Environment" \
+		"9" "Destroy Boot Environment" \
 		2>${TMPFILE}
 		if [ $? -ne 0 ]; then
 			exit 0
@@ -675,7 +706,8 @@ menu_main()
 			5) menu_rename_be;;
 			6) menu_backup_be;;
 			7) menu_restore_be;;
-			8) menu_destroy_be;;
+			8) menu_snapshot_be;;
+			9) menu_destroy_be;;
 		esac
 	done
 }
