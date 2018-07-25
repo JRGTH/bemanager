@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.5.0b"
+VERSION="0.6.0b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -68,6 +68,8 @@ ROOT_FS=$(mount | awk '/ \/ / {print $1}')
 ZROOT_POOL=$(echo ${ROOT_FS} | awk -F '/' '{print $1}')
 BOOT_FS=$(zpool list -H -o bootfs ${ZROOT_POOL})
 ZROOT_DATASET=$(echo ${BOOT_FS} | sed 's|/[^/]*$||')
+PARAM2="${2}"
+PARAM3="${3}"
 
 # Check if this system is Boot Environments compliant.
 if echo "${ROOT_FS}" | grep -q -m 1 -E "^/dev/"; then
@@ -173,9 +175,11 @@ EOF
 
 runtime_variables()
 {
-	# Initialize run-time variables once.
+	# Initialize run-time variables once in TUI mode.
 	if [ "${RUNTIMEVAR}" != 1 ]; then
-		echo "Initializing..."
+		if [ "${CLI}" = 0 ]; then
+			echo "Initializing..."
+		fi
 		BE_MOUNTPATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_MOUNT_PATH)
 		ZFSBACKUP_PATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BACKUP_PATH)
 		ZFSBACKUP_MODE=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BACKUP_MODE)
@@ -204,9 +208,19 @@ initialize_variables()
 menu_activate_be()
 {
 	TOPIC="activate"
-	ITEMSTATS=1
-	BOOTENVLIST=${BOOTENV_LIST}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		ITEMSTATS=1
+		BOOTENVLIST=${BOOTENV_LIST}
+		menu_select_be
+	else
+		if [ -z "${PARAM2}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
@@ -219,13 +233,19 @@ menu_activate_be()
 		echo ${msg}
 		echo "Please reboot now to boot from the recently activated Boot Environment!"
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to activate ${BOOTENV_ITEM} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -233,8 +253,18 @@ menu_activate_be()
 menu_create_be()
 {
 	TOPIC="create"
-	TITLE="\nPlease enter a valid Boot Environment name here for your reference."
-	menu_be_name
+
+	if [ "${CLI}" = 0 ]; then
+		TITLE="\nPlease enter a valid Boot Environment name here for your reference."
+		menu_be_name
+	else
+		if [ -z "${PARAM2}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_NAME=${PARAM2}
+	fi
+
 	echo "==> Trying to ${TOPIC} ${BOOTENV_NAME} Boot Environment..."
 	RETURN=1
 
@@ -246,13 +276,19 @@ menu_create_be()
 		msg="Boot Environment ${BOOTENV_NAME} created successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to create ${BOOTENV_NAME} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -260,9 +296,19 @@ menu_create_be()
 menu_mount_be()
 {
 	TOPIC="mount"
-	ITEMSTATS=1
-	BOOTENVLIST=${BOOTENV_LIST}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		ITEMSTATS=1
+		BOOTENVLIST=${BOOTENV_LIST}
+		menu_select_be
+	else
+		if [ -z "${PARAM2}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 
 	DIR="${BE_MOUNTPATH}/${BOOTENV_ITEM}${MOUNT_PREFIX}"
@@ -278,8 +324,12 @@ menu_mount_be()
 			msg="Boot Environment ${BOOTENV_ITEM} mounted successfully!"
 			echo ${msg}
 			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-			pause
-			menu_main
+			if [ "${CLI}" = 0 ]; then
+				pause
+				menu_main
+			else
+				exit 0
+			fi
 		else
 			msg="Error: Unable to mount ${BOOTENV_ITEM} Boot Environment."
 			echo ${msg}
@@ -288,12 +338,16 @@ menu_mount_be()
 				# Delete directory only if empty.
 				rm -Rf ${DIR}
 			fi
-			pause
+			if [ "${CLI}" = 0 ]; then
+				pause
+			fi
 			exit 1
 		fi
 	else
 		echo "Mount ${DIR} already exist."
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -301,9 +355,19 @@ menu_mount_be()
 menu_umount_be()
 {
 	TOPIC="unmount"
-	ITEMSTATS=1
-	BOOTENVLIST=${BOOTENV_LIST}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		ITEMSTATS=1
+		BOOTENVLIST=${BOOTENV_LIST}
+		menu_select_be
+	else
+		if [ -z "${PARAM2}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 
 	DIR="${BE_MOUNTPATH}/${BOOTENV_ITEM}${MOUNT_PREFIX}"
@@ -322,18 +386,26 @@ menu_umount_be()
 			msg="Boot Environment ${BOOTENV_ITEM} unmounted successfully!"
 			echo ${msg}
 			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-			pause
-			menu_main
+			if [ "${CLI}" = 0 ]; then
+				pause
+				menu_main
+			else
+				exit 0
+			fi
 		else
 			msg="Error: Unable to unmount ${BOOTENV_ITEM} Boot Environment."
 			echo ${msg}
 			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-			pause
+			if [ "${CLI}" = 0 ]; then
+				pause
+			fi
 			exit 1
 		fi
 	else
 		echo "Mount ${DIR} does not exist."
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -341,11 +413,22 @@ menu_umount_be()
 menu_rename_be()
 {
 	TOPIC="rename"
-	ITEMSTATS=1
-	BOOTENVLIST=${BOOTENV_LIST}
-	menu_select_be
-	TITLE="\nPlease enter a new Boot Environment name for ${BOOTENV_ITEM}."
-	menu_be_name
+
+	if [ "${CLI}" = 0 ]; then
+		ITEMSTATS=1
+		BOOTENVLIST=${BOOTENV_LIST}
+		menu_select_be
+		TITLE="\nPlease enter a new Boot Environment name for ${BOOTENV_ITEM}."
+		menu_be_name
+	else
+		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_NAME=${PARAM3}
+	fi
+
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
@@ -357,13 +440,19 @@ menu_rename_be()
 		msg="Boot Environment ${BOOTENV_ITEM} renamed to ${BOOTENV_NAME} successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to rename ${BOOTENV_ITEM} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 	
@@ -371,14 +460,34 @@ menu_rename_be()
 
 menu_backup_be()
 {	
-	# Ask for backup mode and check directory.
-	menu_backup_mode
-	backup_dir_check
-
 	TOPIC="backup"
-	ITEMSTATS=0
-	BOOTENVLIST=${ZROOTSNAP_LIST}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		# Ask for backup mode and check directory.
+		menu_backup_mode
+		backup_dir_check
+
+		ITEMSTATS=0
+		BOOTENVLIST=${ZROOTSNAP_LIST}
+		menu_select_be
+	else
+		# Check for user defined parameters.
+		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		if [ "${PARAM3}" = "local" ]; then
+			BACKUP_MODE=1
+		elif [ "${PARAM3}" = "remote" ]; then
+			BACKUP_MODE=2
+		else
+			echo "Error: Unknown backup target location."
+			exit 1
+		fi
+		backup_dir_check
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	generate_backup_name
 
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
@@ -405,28 +514,54 @@ menu_backup_be()
 		msg="Boot Environment ${BOOTENV_ITEM} saved to ${ZFSBACKUP_PATH}/${BEBACKUP_NAME} successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to ${TOPIC} ${BOOTENV_ITEM} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
 
 menu_restore_be()
 {
-	# Ask for backup mode and check directory.
-	menu_backup_mode
-	backup_dir_check
-
 	TOPIC="restore"
-	ITEMSTATS=0
-	BOOTENVLIST=${ZFSBACKUP_DIR}
 	RESTORE_NAME=${TOPIC}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		# Ask for backup mode and check directory.
+		menu_backup_mode
+		backup_dir_check
+
+		ITEMSTATS=0
+		BOOTENVLIST=${ZFSBACKUP_DIR}
+		menu_select_be
+	else
+		# Check for user defined parameters.
+		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		if [ "${PARAM3}" = "local" ]; then
+			BACKUP_MODE=1
+		elif [ "${PARAM3}" = "remote" ]; then
+			BACKUP_MODE=2
+		else
+			echo "Error: Unknown backup source location."
+			exit 1
+		fi
+		backup_dir_check
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	get_current_date
 
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} from file..."
@@ -454,13 +589,19 @@ menu_restore_be()
 		echo ${msg}
 		echo "Please activate the restored Boot Environment now so it will take effect after reboot!"
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to restore ${BOOTENV_ITEM} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -468,9 +609,19 @@ menu_restore_be()
 menu_snapshot_be()
 {
 	TOPIC="snapshot"
-	ITEMSTATS=1
-	BOOTENVLIST=${BOOTENV_LIST}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		ITEMSTATS=1
+		BOOTENVLIST=${BOOTENV_LIST}
+		menu_select_be
+	else
+		if [ -z "${PARAM2}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	DATE=$(date +%Y-%m-%d-%H:%M:%S)
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
@@ -483,13 +634,19 @@ menu_snapshot_be()
 		msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC} successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to ${TOPIC} ${BOOTENV_ITEM} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -497,9 +654,19 @@ menu_snapshot_be()
 menu_destroy_be()
 {
 	TOPIC="destroy"
-	ITEMSTATS=1
-	BOOTENVLIST=${BOOTENV_LIST}
-	menu_select_be
+
+	if [ "${CLI}" = 0 ]; then
+		ITEMSTATS=1
+		BOOTENVLIST=${BOOTENV_LIST}
+		menu_select_be
+	else
+		if [ -z "${PARAM2}" ]; then
+			${SCRIPTNAME} -h
+			exit 1
+		fi
+		BOOTENV_ITEM=${PARAM2}
+	fi
+
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
@@ -511,13 +678,19 @@ menu_destroy_be()
 		msg="Boot Environment ${BOOTENV_ITEM} destroyed successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
-		menu_main
+		if [ "${CLI}" = 0 ]; then
+			pause
+			menu_main
+		else
+			exit 0
+		fi
 	else
 		msg="Error: Unable to destroy ${BOOTENV_ITEM} Boot Environment."
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		pause
+		if [ "${CLI}" = 0 ]; then
+			pause
+		fi
 		exit 1
 	fi
 }
@@ -679,6 +852,7 @@ menu_be_name()
 menu_main()
 {
 	# Initialize variables and display the main menu.
+	CLI=0
 	runtime_configuration
 	initialize_variables
 
@@ -711,4 +885,35 @@ menu_main()
 		esac
 	done
 }
+
+while getopts ":acmunbrsdh" option; do
+	# Initialize variables and execute command.
+	CLI=1
+	runtime_configuration
+
+	case ${option} in
+		[h]) echo "Usage: ${SCRIPTNAME} -[option] [source] | [target]";
+		echo "Options:"
+		echo "      -a  Activate Boot Environment."
+		echo "      -c  Create Boot Environment."
+		echo "      -m  Mount Boot Environment."
+		echo "      -u  Unmount Boot Environment."
+		echo "      -n  Rename Boot Environment."
+		echo "      -b  Backup Boot Environment."
+		echo "      -r  Restore Boot Environment."
+		echo "      -s  Snapshot Boot Environment."
+		echo "      -d  Destroy Boot Environment."
+		echo "      -h  Display this help message."; exit 0;;
+		[a]) menu_activate_be;;
+		[c]) menu_create_be;;
+		[m]) menu_mount_be;;
+		[u]) menu_umount_be;;
+		[n]) menu_rename_be;;
+		[b]) menu_backup_be;;
+		[r]) menu_restore_be;;
+		[s]) menu_snapshot_be;;
+		[d]) menu_destroy_be;;
+		[?]) echo "Invalid option, -h for usage."; exit 1;;
+	esac
+done
 menu_main
