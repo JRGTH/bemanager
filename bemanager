@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.1b"
+VERSION="0.6.2b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -78,7 +78,7 @@ if echo "${ROOT_FS}" | grep -q -m 1 -E "^/dev/"; then
 elif [ $(echo ${ROOT_FS} | awk -F '/' '{print NF}') -lt 3 ]; then
 	echo "Error: This system is not configured for boot environments."
 	exit 1
-elif [ -z "${BOOT_FS}" -o "${BOOTFS}" = "-" ]; then
+elif [ -z "${BOOT_FS}" -o "${BOOT_FS}" = "-" ]; then
 	echo "Error: ZFS boot pool '${ZROOT_POOL}' has unset 'bootfs' property."
 	exit 1
 fi
