@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.6.1......Read backup/restore mode from config.
 0.6.0......Add CLI usage mode options.
 0.5.0......Use default path environment variable.
 0.4.9......Ability to snapshot BE's, minor text edits.

@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.0b"
+VERSION="0.6.1b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -472,6 +472,9 @@ menu_backup_be()
 		menu_select_be
 	else
 		# Check for user defined parameters.
+		if [ -z "${PARAM3}" ]; then
+			PARAM3=${ZFSBACKUP_MODE}
+		fi
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
 			${SCRIPTNAME} -h
 			exit 1
@@ -546,6 +549,9 @@ menu_restore_be()
 		menu_select_be
 	else
 		# Check for user defined parameters.
+		if [ -z "${PARAM3}" ]; then
+			PARAM3=${ZFSBACKUP_MODE}
+		fi
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
 			${SCRIPTNAME} -h
 			exit 1
