@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.2b"
+VERSION="0.6.3b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -97,28 +97,28 @@ runtime_configuration()
 # Run-time configuration file for ${SCRIPTNAME}.
 # Auto-generated file from ${SCRIPTNAME}.
 
-# Path where to save boot environments backup files, i.e "/mnt/tank/zfsbackups".
+# Path where to save boot environments backup files, e.g "/mnt/tank/zfsbackups".
 ZFS_BACKUP_PATH=""
 
-# Path to use for mounting boot environments, i.e "/mnt".
+# Path to use for mounting boot environments, e.g "/mnt".
 ZFS_MOUNT_PATH=""
 
 # Skip backup mode dialog, set between "local" or "remote" backup modes.  
 ZFS_BACKUP_MODE=""
 
-# Set zfs send extra parameters, i.e "-v" default empty.
+# Set zfs send extra parameters, e.g "-v" default empty.
 ZFS_SEND_PARAMS=""
 
-# Set zfs receive extra parameters, i.e "-v" default empty.
+# Set zfs receive extra parameters, e.g "-v" default empty.
 ZFS_RECV_PARAMS=""
 
-# Set SSH parameters, i.e "root@192.168.1.250".
+# Set SSH parameters, e.g "root@192.168.1.250".
 SSH_NET_PARAMS=""
 
-# Set custom compression method, i.e "xz -9 -v --threads=0", empty for defaults.
+# Set custom compression method, e.g "xz -9 -v --threads=0", empty for defaults.
 BE_COMPRESS_METHOD=""
 
-# Set custom decompression method, i.e "xz -c -d -v --threads=0", empty for defaultf.
+# Set custom decompression method, e.g "xz -c -d -v --threads=0", empty for defaults.
 BE_DECOMPRESS_METHOD=""
 EOF
 
