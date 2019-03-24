@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.4b"
+VERSION="0.6.5b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -772,8 +772,8 @@ menu_backup_mode()
 
 	if [ -z "${BACKUP_MODE}" ]; then
 		# Ask for the backup mode.
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backup mode selection menu" \
-		--radiolist "Select the backup mode, default is Local Backup." 10 50 4 \
+		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backup location selection menu" \
+		--radiolist "Select the backup location, default is Local." 10 50 4 \
 		1 "Local System Backup" on \
 		2 "Remote System Backup" off \
 		2>${TMPFILE}
@@ -828,7 +828,7 @@ menu_select_be()
 	fi
 
 	if [ "${items}" -eq 0 ]; then
-		eval "cdialog --title 'Select Boot Environment' --msgbox 'No Boot Environments available!' 5 60" \
+		eval "cdialog --title 'Select ${ITEM}' --msgbox 'No ${ITEM} available!' 5 60" \
 		2>${TMPFILE}
 		exit 1
 	fi
