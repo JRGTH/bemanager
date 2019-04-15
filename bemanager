@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.5b"
+VERSION="0.6.6b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -42,14 +42,6 @@ fi
 if ! pkg info -qI beadm >/dev/null; then
 	if [ ! -f /usr/local/sbin/beadm ]; then
 		echo "Error: Required package beadm not found."
-		exit 1
-	fi
-fi
-
-# Check if we have cdialog package installed.
-if ! pkg info -qI cdialog >/dev/null; then
-	if [ ! -f /usr/local/bin/cdialog ]; then
-		echo "Error: Required package cdialog not found."
 		exit 1
 	fi
 fi
@@ -129,19 +121,19 @@ EOF
 		trap "rm -f ${CONFIG_FILE}" 1 2 3 5 6 9 15
 
 		# Ask for the full path for storing Boot Environments files.
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Backup Path" \
+		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Backup Path" \
 		--inputbox "Please enter the full path for storing Boot Environments files." 8 70 \
 		2>${TMPFILE}
 		BACKUPPATH=$(cat ${TMPFILE} | tr -d ' ')
 
 		# Ask for the full path for mounting Boot Environments.
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Mount Path" \
+		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Mount Path" \
 		--inputbox "Please enter the full path for mounting Boot Environments." 8 70 \
 		2>${TMPFILE}
 		MOUNTPATH=$(cat ${TMPFILE} | tr -d ' ')
 
 		# Ask for the ssh parameters.
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "SSH Parameters" \
+		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "SSH Parameters" \
 		--inputbox "Please enter the SSH parameters here." 8 70 \
 		2>${TMPFILE}
 		SSHPARAMS=$(cat ${TMPFILE})
@@ -772,7 +764,7 @@ menu_backup_mode()
 
 	if [ -z "${BACKUP_MODE}" ]; then
 		# Ask for the backup mode.
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backup location selection menu" \
+		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backup location selection menu" \
 		--radiolist "Select the backup location, default is Local." 10 50 4 \
 		1 "Local System Backup" on \
 		2 "Remote System Backup" off \
@@ -828,12 +820,12 @@ menu_select_be()
 	fi
 
 	if [ "${items}" -eq 0 ]; then
-		eval "cdialog --title 'Select ${ITEM}' --msgbox 'No ${ITEM} available!' 5 60" \
+		eval "dialog --title 'Select ${ITEM}' --msgbox 'No ${ITEM} available!' 5 60" \
 		2>${TMPFILE}
 		exit 1
 	fi
 
-	eval "cdialog --backtitle '${PRD_NAME} ${VERSION} for ${APP_VERSION}' --title 'Select Boot Environment' \
+	eval "dialog --backtitle '${PRD_NAME} ${VERSION} for ${APP_VERSION}' --title 'Select Boot Environment' \
 		--radiolist 'Select any ${ITEM} you which to ${TOPIC}, use [up] [down] keys to navigate the menu then select a item with the [spacebar].' \
 		${menuheight} 80 ${items} ${list}" \
 		2>${TMPFILE}
@@ -850,7 +842,7 @@ menu_select_be()
 menu_be_name()
 {
 	# Ask for new Boot Environment name.
-	cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environment Name" \
+	dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environment Name" \
 	--inputbox "${TITLE}" 8 70 \
 	2>${TMPFILE}
 	if [ $? -ne 0 ]; then
@@ -871,7 +863,7 @@ menu_main()
 	initialize_variables
 
 	while :; do
-		cdialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --clear --title "Boot Environments Manager" --cancel-label "Exit" --menu "" 15 50 10 \
+		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --clear --title "Boot Environments Manager" --cancel-label "Exit" --menu "" 15 50 10 \
 		"1" "Activate Boot Environment" \
 		"2" "Create Boot Environment" \
 		"3" "Mount Boot Environment" \
