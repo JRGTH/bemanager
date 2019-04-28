@@ -1,0 +1,26 @@
+# Run-time configuration file for bemanager.
+# Auto-generated file from bemanager.
+
+# Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
+ZFS_BACKUP_PATH="/mnt/tank/zfsbackups/myserver"
+
+# Path to use for mounting boot environments, e.g. "/mnt".
+ZFS_MOUNT_PATH="/mnt/beworkdir"
+
+# Skip backup mode dialog, set between "local" or "remote" backup modes.  
+ZFS_BACKUP_MODE="remote"
+
+# Set zfs send extra parameters, e.g. "-v" default empty.
+ZFS_SEND_PARAMS=""
+
+# Set zfs receive extra parameters, e.g. "-v" default empty.
+ZFS_RECV_PARAMS=""
+
+# Set SSH parameters, e.g. "root@192.168.1.250".
+SSH_NET_PARAMS="-q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@192.168.1.250"
+
+# Set custom compression method, e.g. "xz -9 -v --threads=0", empty for defaults.
+BE_COMPRESS_METHOD="xz -0 -v --threads=0"
+
+# Set custom decompression method, e.g. "xz -c -d -v --threads=0", empty for defaults.
+BE_DECOMPRESS_METHOD="xz -c -d -v --threads=0"
