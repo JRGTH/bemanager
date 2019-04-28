@@ -12,7 +12,7 @@ Please note that this utility is not intended to be a replacement for the comman
 For now there is no installer yet, but you can simply copy and paste the single line below command on ssh for installation:
 
 ```
-fetch --no-verify-peer https://github.com/JRGTH/bemanager/archive/master.zip && tar -xf master.zip --strip-components 1 bemanager-master/bemanager && chmod 555 bemanager && mv bemanager /usr/local/sbin/bemanager && rm master.zip; rehash
+fetch --no-verify-peer https://github.com/JRGTH/bemanager/archive/master.zip && tar -xvf master.zip --strip-components 1 'bemanager-master/bemanager*' && chmod 555 bemanager && mv bemanager /usr/local/sbin/ && mv bemanager.conf.sample /usr/local/etc/ && rm master.zip
 ```
 
 ## Screenshot
