@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.6.9......Don't pause upon directory check errors.
 0.6.8......Improve usage help and description.
 0.6.7......Display any BE@Snap instead of current BE.
 0.6.6......Remove cdialog dependency.
