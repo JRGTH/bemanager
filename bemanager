@@ -6,7 +6,7 @@
 # Debug script.
 #set -x
 
-# Copyright (c) 2018 José Rivera (JoseMR)
+# Copyright (c) 2018-2019 José Rivera (JoseMR)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.7b"
+VERSION="0.6.8b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -124,7 +124,7 @@ EOF
 		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Backup Path" \
 		--inputbox "Please enter the full path for storing Boot Environments files." 8 70 \
 		2>${TMPFILE}
-		BACKUPPATH=$(cat ${TMPFILE} | tr -d ' ')
+		BACKUPPATH=$(cat ${TMPFILE} | tr -d ' ' | sed 's|/*$||')
 
 		# Ask for the full path for mounting Boot Environments.
 		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Mount Path" \
@@ -899,7 +899,7 @@ while getopts ":acmunbrsdh" option; do
 	runtime_configuration
 
 	case ${option} in
-		[h]) echo "Usage: ${SCRIPTNAME} -[option] [source] | [target]";
+		[h]) echo "Usage: ${SCRIPTNAME} [ -option ] [ beName | beName@snap | fileName ] | [ local | remote ]";
 		echo "Options:"
 		echo "      -a  Activate Boot Environment."
 		echo "      -c  Create Boot Environment."
@@ -910,6 +910,7 @@ while getopts ":acmunbrsdh" option; do
 		echo "      -r  Restore Boot Environment."
 		echo "      -s  Snapshot Boot Environment."
 		echo "      -d  Destroy Boot Environment."
+		echo "      -v  Display version and exit."
 		echo "      -h  Display this help message."; exit 0;;
 		[a]) menu_activate_be;;
 		[c]) menu_create_be;;
