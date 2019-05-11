@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.6.9b"
+VERSION="0.7.0b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -41,7 +41,7 @@ fi
 # Check if we have beadm package installed.
 if ! pkg info -qI beadm >/dev/null; then
 	if [ ! -f /usr/local/sbin/beadm ]; then
-		echo "Error: Required package beadm not found."
+		echo "Error: Required beadm command not found."
 		exit 1
 	fi
 fi
@@ -112,6 +112,9 @@ BE_COMPRESS_METHOD=""
 
 # Set custom decompression method, e.g. "xz -c -d -v --threads=0", empty for defaults.
 BE_DECOMPRESS_METHOD=""
+
+# Display boot environments only and always take a recent snapshot before backup.
+BE_SIMPLE_MODE=""
 EOF
 
 		# Start the initial configuration dialog helper.
@@ -134,9 +137,17 @@ EOF
 
 		# Ask for the ssh parameters.
 		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "SSH Parameters" \
-		--inputbox "Please enter the SSH parameters here." 8 70 \
+		--inputbox "Please enter the SSH parameters here, leave empty for none." 8 70 \
 		2>${TMPFILE}
 		SSHPARAMS=$(cat ${TMPFILE})
+
+		# Ask for utility usage mode.
+		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backups in simple mode" \
+		--radiolist "Show boot environments only and perform an auto-snapshot before backup?" 10 70 4 \
+		1 "Yes, Simple backup mode." on \
+		2 "No, Advanced backup mode." off \
+		2>${TMPFILE}
+		SIMPLEMODE=$(cat ${TMPFILE})
 
 		# Write configuration file.
 		echo "Generating initial configuration..."
@@ -159,6 +170,11 @@ EOF
 		if [ -n "${SSHPARAMS}" ]; then
 			sysrc -f ${CONFIG_FILE} SSH_NET_PARAMS="${SSHPARAMS}"
 		fi
+		if [ "${SIMPLEMODE}" = 1 ]; then
+			sysrc -f ${CONFIG_FILE} BE_SIMPLE_MODE="yes"
+		elif [ "${SIMPLEMODE}" = 2 ]; then
+			sysrc -f ${CONFIG_FILE} BE_SIMPLE_MODE=""
+		fi
 	fi
 	runtime_variables
 }
@@ -167,9 +183,6 @@ runtime_variables()
 {
 	# Initialize run-time variables once in TUI mode.
 	if [ "${RUNTIMEVAR}" != 1 ]; then
-		if [ "${CLI}" = 0 ]; then
-			echo "Initializing..."
-		fi
 		BE_MOUNTPATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_MOUNT_PATH)
 		ZFSBACKUP_PATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BACKUP_PATH)
 		ZFSBACKUP_MODE=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BACKUP_MODE)
@@ -177,7 +190,7 @@ runtime_variables()
 		ZFS_RECVPARAM=$(sysrc -f ${CONFIG_FILE} -qn ZFS_RECV_PARAMS)
 		SSH_PARAMS=$(sysrc -f ${CONFIG_FILE} -qn SSH_NET_PARAMS)
 		COMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_COMPRESS_METHOD)
-		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_DECOMPRESS_METHOD)
+		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_DECOMPRESS_METHOD)		
 		SSH_CMD="ssh ${SSH_PARAMS}"
 		RUNTIMEVAR=1
 	fi
@@ -454,17 +467,23 @@ menu_rename_be()
 }
 
 menu_backup_be()
-{	
-	ITEM="Boot Environment snapshot"
-	TOPIC="backup"
-
+{
 	if [ "${CLI}" = 0 ]; then
 		# Ask for backup mode and check directory.
 		menu_backup_mode
 		backup_dir_check
 
-		ITEMSTATS=0
-		BOOTENVLIST=${ZROOTSNAP_LIST}
+		# Check if simple backup mode is enabled.
+		if [ "$(sysrc -f ${CONFIG_FILE} -qn BE_SIMPLE_MODE)" = "yes" ]; then
+			ITEM="Boot Environment"
+			ITEMSTATS=1
+			BOOTENVLIST=${BOOTENV_LIST}
+		else
+			ITEM="Boot Environment@Snapshot"
+			ITEMSTATS=0
+			BOOTENVLIST=${ZROOTSNAP_LIST}
+		fi
+
 		menu_select_be
 	else
 		# Check for user defined parameters.
@@ -487,14 +506,43 @@ menu_backup_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	generate_backup_name
+	# Check if simple backup mode is enabled.
+	if [ "$(sysrc -f ${CONFIG_FILE} -qn BE_SIMPLE_MODE)" = "yes" ]; then
+		TOPIC="snapshot"
+		DATE=$(date +%Y-%m-%d-%H:%M:%S)
+		echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+		RETURN=1
 
+		# Snapshot selected Boot Environment.
+		beadm create ${BOOTENV_ITEM}@${DATE}
+
+		RETURN=$?
+		if [ "${RETURN}" -eq 0 ]; then
+			msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC} successfully!"
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		else
+			msg="Error: Unable to ${TOPIC} ${BOOTENV_ITEM} Boot Environment."
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			exit 1
+		fi
+		# Send compressed be/snapshot to file.
+		BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
+		BE_TARGET=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}
+		BACKUPNAME=${BOOTENV_ITEM}-${DATE}
+	else
+		generate_backup_name
+		# Send compressed be/snapshot to file.
+		BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}
+		BE_TARGET=${ZFSBACKUP_PATH}/${BEBACKUP_NAME}
+		BACKUPNAME=${BEBACKUP_NAME}
+	fi
+
+	TOPIC="backup"
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
-	# Send compressed be/snapshot to file. 
-	BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}
-	BE_TARGET=${ZFSBACKUP_PATH}/${BEBACKUP_NAME}
 	if [ -z "${COMPRESS_METHOD}" ]; then
 		# Set the default compression method.
 		COMPRESS_METHOD=${DEFAULT_COMPRESS}
@@ -510,7 +558,7 @@ menu_backup_be()
 
 	RETURN=$?
 	if [ "${RETURN}" -eq 0 ]; then
-		msg="Boot Environment ${BOOTENV_ITEM} saved to ${ZFSBACKUP_PATH}/${BEBACKUP_NAME} successfully!"
+		msg="Boot Environment ${BOOTENV_ITEM} saved to ${ZFSBACKUP_PATH}/${BACKUPNAME} successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 		if [ "${CLI}" = 0 ]; then

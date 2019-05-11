@@ -24,3 +24,6 @@ BE_COMPRESS_METHOD="xz -0 -v --threads=0"
 
 # Set custom decompression method, e.g. "xz -c -d -v --threads=0", empty for defaults.
 BE_DECOMPRESS_METHOD="xz -c -d -v --threads=0"
+
+# Display boot environments only and always take a recent snapshot before backup.
+BE_SIMPLE_MODE="yes"
