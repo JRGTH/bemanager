@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.7.0b"
+VERSION="0.7.1b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -529,8 +529,8 @@ menu_backup_be()
 		fi
 		# Send compressed be/snapshot to file.
 		BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
-		BE_TARGET=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}
-		BACKUPNAME=${BOOTENV_ITEM}-${DATE}
+		BE_TARGET=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}
+		BACKUPNAME=${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}
 	else
 		generate_backup_name
 		# Send compressed be/snapshot to file.
