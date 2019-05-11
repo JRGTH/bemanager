@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.7.2......Set backup topic variable.
 0.7.1......Add backup file name extension.
 0.7.0......Added simple backup mode option.
 0.6.9......Don't pause upon directory check errors.

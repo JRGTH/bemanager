@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.7.1b"
+VERSION="0.7.2b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -468,6 +468,8 @@ menu_rename_be()
 
 menu_backup_be()
 {
+	TOPIC="backup"
+
 	if [ "${CLI}" = 0 ]; then
 		# Ask for backup mode and check directory.
 		menu_backup_mode
