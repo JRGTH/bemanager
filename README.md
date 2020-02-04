@@ -17,7 +17,7 @@ fetch --no-verify-peer https://github.com/JRGTH/bemanager/archive/master.zip && 
 
 ## Screenshot
 
-![bemanager](https://drive.google.com/uc?export=download&id=14X0jSTBXJbdeUQznB5-l7jRLyKGrNQ3B)
+![bemanager](https://i.imged.com/i-75278192.png)
 
 
 ## CLI Options
