@@ -6,7 +6,7 @@
 # Debug script.
 #set -x
 
-# Copyright (c) 2018-2019 José Rivera (JoseMR)
+# Copyright (c) 2018-2020 José Rivera (JoseMR)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Display version info if requested.
-VERSION="0.7.2b"
+VERSION="0.7.3b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -511,7 +511,7 @@ menu_backup_be()
 	# Check if simple backup mode is enabled.
 	if [ "$(sysrc -f ${CONFIG_FILE} -qn BE_SIMPLE_MODE)" = "yes" ]; then
 		TOPIC="snapshot"
-		DATE=$(date +%Y-%m-%d-%H:%M:%S)
+		DATE=$(date +%F-%H%M%S)
 		echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 		RETURN=1
 
@@ -676,7 +676,7 @@ menu_snapshot_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	DATE=$(date +%Y-%m-%d-%H:%M:%S)
+	DATE=$(date +%F-%H%M%S)
 	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
@@ -793,7 +793,7 @@ generate_backup_name()
 get_current_date()
 {
 	# Get current date and time.
-	DATE=$(date +%Y-%m-%d-%H%M%S)
+	DATE=$(date +%F-%H%M%S)
 }
 
 menu_backup_mode()
