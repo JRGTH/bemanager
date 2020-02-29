@@ -4,7 +4,7 @@ FreeBSD utility to manage, backup, and restore Boot Environments on ZFS filesyst
 
 The utility also uses the default zfs send/receive commands for BootEnvironment@Snapshot backup and restoration to/from either local or remote storage with XZ compression.
 
-Please note that this utility is not intended to be a replacement for the command line, but rather for the ease of some common task on demand.
+Please note that this utility is not intended to be a replacement for the beadm, but rather for the ease of some common task on demand.
 
 
 ## Installation
