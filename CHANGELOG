@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.8.0......Code improvements following standards, config changes.
 0.7.3......Remove colon from filename.
 0.7.2......Set backup topic variable.
 0.7.1......Add backup file name extension.

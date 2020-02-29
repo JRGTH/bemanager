@@ -31,8 +31,14 @@
 # Set environment.
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
+# Must be root.
+if [ "$(id -u)" -ne 0 ]; then
+	echo "Permission Denied!"
+	exit 1
+fi
+
 # Display version info if requested.
-VERSION="0.7.3b"
+VERSION="0.8.0b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -52,9 +58,9 @@ APP_VERSION=$(beadm version)
 CONFIG_PATH="/usr/local/etc"
 CONFIG_FILE="${CONFIG_PATH}/${SCRIPTNAME}.conf"
 PRD_NAME="Boot Environments Manager"
-DEFAULT_COMPRESS="xz -0 -v"
-DEFAULT_DECOMPRESS="xz -c -d -v"
-ARCHIVE_EXT="zfs"
+DEFAULT_COMPRESS="-0 -v"
+DEFAULT_DECOMPRESS="-c -d -v"
+ARCHIVE_EXT="xz"
 MOUNT_PREFIX="_BE"
 ROOT_FS=$(mount | awk '/ \/ / {print $1}')
 ZROOT_POOL=$(echo ${ROOT_FS} | awk -F '/' '{print $1}')
@@ -107,14 +113,14 @@ ZFS_RECV_PARAMS=""
 # Set SSH parameters, e.g. "root@192.168.1.250".
 SSH_NET_PARAMS=""
 
-# Set custom compression method, e.g. "xz -9 -v --threads=0", empty for defaults.
-BE_COMPRESS_METHOD=""
+# Set custom compression method, e.g. "-9 -v --threads=0", empty for defaults.
+XZ_COMPRESS_OPTIONS=""
 
-# Set custom decompression method, e.g. "xz -c -d -v --threads=0", empty for defaults.
-BE_DECOMPRESS_METHOD=""
+# Set custom decompression method, e.g. "-c -d -v --threads=0", empty for defaults.
+XZ_DECOMPRESS_OPTIONS=""
 
-# Display boot environments only and always take a recent snapshot before backup.
-BE_SIMPLE_MODE=""
+# Display boot environments only and always take a recent snapshot before backup, empty to disable.
+UI_SIMPLE_MODE=""
 EOF
 
 		# Start the initial configuration dialog helper.
@@ -143,7 +149,7 @@ EOF
 
 		# Ask for utility usage mode.
 		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backups in simple mode" \
-		--radiolist "Show boot environments only and perform an auto-snapshot before backup?" 10 70 4 \
+		--radiolist "Show boot environments only and take a recent snapshot before backup?" 10 70 4 \
 		1 "Yes, Simple backup mode." on \
 		2 "No, Advanced backup mode." off \
 		2>${TMPFILE}
@@ -171,9 +177,9 @@ EOF
 			sysrc -f ${CONFIG_FILE} SSH_NET_PARAMS="${SSHPARAMS}"
 		fi
 		if [ "${SIMPLEMODE}" = 1 ]; then
-			sysrc -f ${CONFIG_FILE} BE_SIMPLE_MODE="yes"
+			sysrc -f ${CONFIG_FILE} UI_SIMPLE_MODE="yes"
 		elif [ "${SIMPLEMODE}" = 2 ]; then
-			sysrc -f ${CONFIG_FILE} BE_SIMPLE_MODE=""
+			sysrc -f ${CONFIG_FILE} UI_SIMPLE_MODE=""
 		fi
 	fi
 	runtime_variables
@@ -189,8 +195,8 @@ runtime_variables()
 		ZFS_SENDPARAM=$(sysrc -f ${CONFIG_FILE} -qn ZFS_SEND_PARAMS)
 		ZFS_RECVPARAM=$(sysrc -f ${CONFIG_FILE} -qn ZFS_RECV_PARAMS)
 		SSH_PARAMS=$(sysrc -f ${CONFIG_FILE} -qn SSH_NET_PARAMS)
-		COMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_COMPRESS_METHOD)
-		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn BE_DECOMPRESS_METHOD)		
+		COMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn XZ_COMPRESS_OPTIONS)
+		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn XZ_DECOMPRESS_OPTIONS)		
 		SSH_CMD="ssh ${SSH_PARAMS}"
 		RUNTIMEVAR=1
 	fi
@@ -226,7 +232,8 @@ menu_activate_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
 	# Activate selected Boot Environment.
@@ -270,7 +277,8 @@ menu_create_be()
 		BOOTENV_NAME=${PARAM2}
 	fi
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_NAME} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_NAME} Boot Environment..."
 	RETURN=1
 
 	# Create new Boot Environment.
@@ -315,7 +323,8 @@ menu_mount_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 
 	DIR="${BE_MOUNTPATH}/${BOOTENV_ITEM}${MOUNT_PREFIX}"
 	if ! mount | grep -q ${DIR}; then
@@ -375,7 +384,8 @@ menu_umount_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 
 	DIR="${BE_MOUNTPATH}/${BOOTENV_ITEM}${MOUNT_PREFIX}"
 	if [ -d "${DIR}" ]; then
@@ -437,7 +447,8 @@ menu_rename_be()
 		BOOTENV_NAME=${PARAM3}
 	fi
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
 	# Rename selected Boot Environment.
@@ -469,6 +480,7 @@ menu_rename_be()
 menu_backup_be()
 {
 	TOPIC="backup"
+	UIMODE=$(sysrc -f ${CONFIG_FILE} -qn UI_SIMPLE_MODE)
 
 	if [ "${CLI}" = 0 ]; then
 		# Ask for backup mode and check directory.
@@ -476,7 +488,7 @@ menu_backup_be()
 		backup_dir_check
 
 		# Check if simple backup mode is enabled.
-		if [ "$(sysrc -f ${CONFIG_FILE} -qn BE_SIMPLE_MODE)" = "yes" ]; then
+		if [ "${UIMODE}" = "yes" ]; then
 			ITEM="Boot Environment"
 			ITEMSTATS=1
 			BOOTENVLIST=${BOOTENV_LIST}
@@ -509,13 +521,14 @@ menu_backup_be()
 	fi
 
 	# Check if simple backup mode is enabled.
-	if [ "$(sysrc -f ${CONFIG_FILE} -qn BE_SIMPLE_MODE)" = "yes" ]; then
+	if [ "${UIMODE}" = "yes" ]; then
 		TOPIC="snapshot"
-		DATE=$(date +%F-%H%M%S)
-		echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+		get_current_date
+		echo
+		echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 		RETURN=1
 
-		# Snapshot selected Boot Environment.
+		# Temporary snapshot selected Boot Environment
 		beadm create ${BOOTENV_ITEM}@${DATE}
 
 		RETURN=$?
@@ -542,7 +555,8 @@ menu_backup_be()
 	fi
 
 	TOPIC="backup"
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
 	if [ -z "${COMPRESS_METHOD}" ]; then
@@ -551,11 +565,11 @@ menu_backup_be()
 	fi
 	if [ "${BACKUP_MODE}" = 1 ]; then
 		# Local backup target file.
-		zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${COMPRESS_METHOD} > ${BE_TARGET}
+		zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | xz ${COMPRESS_METHOD} > ${BE_TARGET}
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		# Network backup target file.
 		echo "Saving to network location, this might take a while please wait..."
-		zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "${COMPRESS_METHOD} > ${BE_TARGET}"
+		zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "xz ${COMPRESS_METHOD} > ${BE_TARGET}"
 	fi
 
 	RETURN=$?
@@ -563,6 +577,12 @@ menu_backup_be()
 		msg="Boot Environment ${BOOTENV_ITEM} saved to ${ZFSBACKUP_PATH}/${BACKUPNAME} successfully!"
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+
+		# Remove temporary snapshot on success.
+		if [ "${UIMODE}" = "yes" ]; then
+			zfs destroy ${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
+		fi
+
 		if [ "${CLI}" = 0 ]; then
 			pause
 			menu_main
@@ -617,7 +637,8 @@ menu_restore_be()
 
 	get_current_date
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} from file..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} from file..."
 	RETURN=1
 
 	# Receive compressed be/snapshot from file.
@@ -629,18 +650,18 @@ menu_restore_be()
 	fi
 	if [ "${BACKUP_MODE}" = 1 ]; then
 		# Local restore from file.
-		${DECOMPRESS_METHOD} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+		xz ${DECOMPRESS_METHOD} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		# Remote restore from file.
 		echo "Restoring from network location, this might take a while please wait..."
-		${SSH_CMD} "${DECOMPRESS_METHOD} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+		${SSH_CMD} "xz ${DECOMPRESS_METHOD} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 	fi
 
 	RETURN=$?
 	if [ "${RETURN}" -eq 0 ]; then
 		msg="Boot Environment ${BOOTENV_ITEM} restored to ${ZROOT_DATASET}/${RESTORE_NAME}-${DATE} successfully!"
 		echo ${msg}
-		echo "Please activate the restored Boot Environment now so it will take effect after reboot!"
+		echo "=> Activate the restored Boot Environment for it to take effect after reboot!"
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 		if [ "${CLI}" = 0 ]; then
 			pause
@@ -676,8 +697,9 @@ menu_snapshot_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	DATE=$(date +%F-%H%M%S)
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	get_current_date
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
 	# Snapshot selected Boot Environment.
@@ -722,7 +744,8 @@ menu_destroy_be()
 		BOOTENV_ITEM=${PARAM2}
 	fi
 
-	echo "==> Trying to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+	echo
+	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
 
 	# Destroy the selected Boot Environment.
