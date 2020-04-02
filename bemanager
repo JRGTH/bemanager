@@ -38,7 +38,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Display version info if requested.
-VERSION="0.8.0b"
+VERSION="0.8.1b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -332,7 +332,7 @@ menu_mount_be()
 		RETURN=1
 
 		# Mount selected Boot Environment.
-		beadm mount ${BOOTENV_ITEM} ${DIR}
+		beadm mount ${BOOTENV_ITEM} ${DIR} && chmod 0700 ${DIR}
 
 		RETURN=$?
 		if [ "${RETURN}" -eq 0 ]; then
