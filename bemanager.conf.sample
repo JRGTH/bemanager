@@ -19,10 +19,10 @@ ZFS_RECV_PARAMS=""
 # Set SSH parameters, e.g. "root@192.168.1.250".
 SSH_NET_PARAMS="-q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@192.168.1.250"
 
-# Set custom compression method, e.g. "xz -9 -v --threads=0", empty for defaults.
+# Set custom compression method, e.g. "-9 -v --threads=0", empty for defaults.
 XZ_COMPRESS_OPTIONS="-0 -v --threads=0"
 
-# Set custom decompression method, e.g. "xz -c -d -v --threads=0", empty for defaults.
+# Set custom decompression method, e.g. "-c -d -v --threads=0", empty for defaults.
 XZ_DECOMPRESS_OPTIONS="-c -d -v --threads=0"
 
 # Display boot environments only and always take a recent snapshot before backup, empty to disable.

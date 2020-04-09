@@ -38,7 +38,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Display version info if requested.
-VERSION="0.8.1b"
+VERSION="0.8.2b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
@@ -488,7 +488,7 @@ menu_backup_be()
 		backup_dir_check
 
 		# Check if simple backup mode is enabled.
-		if [ "${UIMODE}" = "yes" ]; then
+		if [ "${UIMODE}" = "yes" -o "${UIMODE}" = "YES" ]; then
 			ITEM="Boot Environment"
 			ITEMSTATS=1
 			BOOTENVLIST=${BOOTENV_LIST}
@@ -786,7 +786,7 @@ backup_dir_check()
 			echo "Please make sure the backup path exist and is accessible."
 			exit 1
 		fi
-		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH} | grep -E "*.${ARCHIVE_EXT}" || true)
+		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH} | grep -E "*.xz|*.zfs" || true)
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		if [ -z "${SSH_PARAMS}" ]; then
 			echo "Error: SSH parameters are undefined."
