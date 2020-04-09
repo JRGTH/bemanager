@@ -37,16 +37,16 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-# Display version info if requested.
-VERSION="0.8.3b"
-if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
-	echo "bemanager ${VERSION}"
-	exit 0
-fi
+# Display version info.
+version()
+{
+	echo "bemanager 0.8.3b"
+}
 
+# Display usage info.
 usage()
 {
-	echo -e "Usage: $(basename $0) [option] [beName | beName@snap | fileName] | [local | remote]
+	echo -e "Usage: bemanager [option] [beName | beName@snap | fileName] | [local | remote]
 Options:
       -a  Activate Boot Environment.
       -c  Create Boot Environment.
@@ -64,8 +64,11 @@ Options:
 # Handle special-case commands first.
 case "${1}" in
 	help|-h|--help)
-	usage
-	exit 0;;
+		usage
+		exit 0;;
+	version|-v|--version)
+		version
+		exit 0;;
 esac
 
 # Check if we have beadm package installed.
