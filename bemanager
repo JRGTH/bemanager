@@ -38,11 +38,35 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Display version info if requested.
-VERSION="0.8.2b"
+VERSION="0.8.3b"
 if [ "${1}" = "-v" -o "${1}" = "--version" ]; then
 	echo "bemanager ${VERSION}"
 	exit 0
 fi
+
+usage()
+{
+	echo -e "Usage: $(basename $0) [option] [beName | beName@snap | fileName] | [local | remote]
+Options:
+      -a  Activate Boot Environment.
+      -c  Create Boot Environment.
+      -m  Mount Boot Environment.
+      -u  Unmount Boot Environment.
+      -n  Rename Boot Environment.
+      -b  Backup Boot Environment.
+      -r  Restore Boot Environment.
+      -s  Snapshot Boot Environment.
+      -d  Destroy Boot Environment.
+      -v  Display version and exit.
+      -h  Display this help message."
+}
+
+# Handle special-case commands first.
+case "${1}" in
+	help|-h|--help)
+	usage
+	exit 0;;
+esac
 
 # Check if we have beadm package installed.
 if ! pkg info -qI beadm >/dev/null; then
@@ -226,7 +250,7 @@ menu_activate_be()
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_ITEM=${PARAM2}
@@ -271,7 +295,7 @@ menu_create_be()
 		menu_be_name
 	else
 		if [ -z "${PARAM2}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_NAME=${PARAM2}
@@ -317,7 +341,7 @@ menu_mount_be()
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_ITEM=${PARAM2}
@@ -378,7 +402,7 @@ menu_umount_be()
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_ITEM=${PARAM2}
@@ -440,7 +464,7 @@ menu_rename_be()
 		menu_be_name
 	else
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_ITEM=${PARAM2}
@@ -505,7 +529,7 @@ menu_backup_be()
 			PARAM3=${ZFSBACKUP_MODE}
 		fi
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		if [ "${PARAM3}" = "local" ]; then
@@ -620,7 +644,7 @@ menu_restore_be()
 			PARAM3=${ZFSBACKUP_MODE}
 		fi
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		if [ "${PARAM3}" = "local" ]; then
@@ -691,7 +715,7 @@ menu_snapshot_be()
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_ITEM=${PARAM2}
@@ -738,7 +762,7 @@ menu_destroy_be()
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
-			${SCRIPTNAME} -h
+			usage
 			exit 1
 		fi
 		BOOTENV_ITEM=${PARAM2}
@@ -960,25 +984,12 @@ menu_main()
 	done
 }
 
-while getopts ":acmunbrsdh" option; do
+while getopts ":acmunbrsd" option; do
 	# Initialize variables and execute command.
 	CLI=1
 	runtime_configuration
 
 	case ${option} in
-		[h]) echo "Usage: ${SCRIPTNAME} [ -option ] [ beName | beName@snap | fileName ] | [ local | remote ]";
-		echo "Options:"
-		echo "      -a  Activate Boot Environment."
-		echo "      -c  Create Boot Environment."
-		echo "      -m  Mount Boot Environment."
-		echo "      -u  Unmount Boot Environment."
-		echo "      -n  Rename Boot Environment."
-		echo "      -b  Backup Boot Environment."
-		echo "      -r  Restore Boot Environment."
-		echo "      -s  Snapshot Boot Environment."
-		echo "      -d  Destroy Boot Environment."
-		echo "      -v  Display version and exit."
-		echo "      -h  Display this help message."; exit 0;;
 		[a]) menu_activate_be;;
 		[c]) menu_create_be;;
 		[m]) menu_mount_be;;
