@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.8.4......Update to work with `bectl` command, update config.
 0.8.3......Improved usage output.
 0.8.2......Support for previous file extension on restores
 0.8.1......Set permissions to 700 on mounted BE's.
