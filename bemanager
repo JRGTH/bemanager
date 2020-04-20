@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Utility version.
-VERSION="0.8.4b"
+VERSION="0.8.5b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -234,9 +234,8 @@ runtime_variables()
 	APP_VERSION=$(echo ${ZBE_COMMAND})
 
 	# Check if we have the be management command installed.
-	HAS_COMMAND=$(whereis -qb ${ZBE_COMMAND})
-	if [ ! -f "${HAS_COMMAND}" ]; then
-		echo "Error: Required ${HAS_COMMAND} command not found."
+	if [ ! -f "/usr/local/sbin/${ZBE_COMMAND}" ] && [ ! -f "/sbin/${ZBE_COMMAND}" ]; then
+		echo "Error: Required ${ZBE_COMMAND} command not found."
 		exit 1
 	fi
 }
