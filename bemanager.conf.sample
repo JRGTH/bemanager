@@ -1,6 +1,9 @@
 # Run-time configuration file for bemanager.
 # Auto-generated file from bemanager.
 
+# Set the preferred zfs boot environments management utility, e.g. "beadm".
+ZFS_BE_MANAGER=""
+
 # Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
 ZFS_BACKUP_PATH="/mnt/tank/zfsbackups/myserver"
 
