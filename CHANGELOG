@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.8.6......Minor code changes, use common exit codes.
 0.8.5......Look for the command in the common locations.
 0.8.4......Update to work with `bectl` command, update config.
 0.8.3......Improved usage output.
