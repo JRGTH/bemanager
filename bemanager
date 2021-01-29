@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.8.6b"
+VERSION="0.8.7b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -212,7 +212,7 @@ EOF
 
 runtime_variables()
 {
-	# Initialize run-time variables once in TUI mode.
+	# Initialize run-time variables once in TUI/CLI mode.
 	if [ "${RUNTIMEVAR}" != 1 ]; then
 		ZBE_COMMAND=$(sysrc -f ${CONFIG_FILE} -qn ZFS_BE_MANAGER)
 		BE_MOUNTPATH=$(sysrc -f ${CONFIG_FILE} -qn ZFS_MOUNT_PATH)
@@ -222,8 +222,9 @@ runtime_variables()
 		ZFS_RECVPARAM=$(sysrc -f ${CONFIG_FILE} -qn ZFS_RECV_PARAMS)
 		SSH_PARAMS=$(sysrc -f ${CONFIG_FILE} -qn SSH_NET_PARAMS)
 		COMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn XZ_COMPRESS_OPTIONS)
-		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn XZ_DECOMPRESS_OPTIONS)		
+		DECOMPRESS_METHOD=$(sysrc -f ${CONFIG_FILE} -qn XZ_DECOMPRESS_OPTIONS)
 		SSH_CMD="ssh ${SSH_PARAMS}"
+		UI_MODE=$(sysrc -f ${CONFIG_FILE} -qn UI_SIMPLE_MODE)
 		RUNTIMEVAR=1
 	fi
 
@@ -518,7 +519,6 @@ menu_rename_be()
 menu_backup_be()
 {
 	TOPIC="backup"
-	UIMODE=$(sysrc -f ${CONFIG_FILE} -qn UI_SIMPLE_MODE)
 
 	if [ "${CLI}" = 0 ]; then
 		# Ask for backup mode and check directory.
@@ -526,7 +526,7 @@ menu_backup_be()
 		backup_dir_check
 
 		# Check if simple backup mode is enabled.
-		if [ "${UIMODE}" = "yes" -o "${UIMODE}" = "YES" ]; then
+		if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
 			ITEM="Boot Environment"
 			ITEMSTATS=1
 			BOOTENVLIST=${BOOTENV_LIST}
@@ -559,7 +559,7 @@ menu_backup_be()
 	fi
 
 	# Check if simple backup mode is enabled.
-	if [ "${UIMODE}" = "yes" ]; then
+	if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
 		TOPIC="snapshot"
 		get_current_date
 		echo
@@ -616,9 +616,26 @@ menu_backup_be()
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 
-		# Remove temporary snapshot on success.
-		if [ "${UIMODE}" = "yes" ]; then
+		# Remove temporary snapshot on success on simple mode.
+		if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
+			TOPIC="snapshot"
+			echo
+			echo "=> Attempting to cleanup recent ${BOOTENV_ITEM} Boot Environment ${TOPIC}..."
+			RETURN=1
+
 			zfs destroy ${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
+
+			RETURN=$?
+			if [ "${RETURN}" -eq 0 ]; then
+				msg="Boot Environment ${BOOTENV_ITEM} recent ${TOPIC} cleaned successfully!"
+				echo ${msg}
+				/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			else
+				msg="Error: Unable to cleanup ${BOOTENV_ITEM} recent Boot Environment ${TOPIC}."
+				echo ${msg}
+				/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+				exit 1
+			fi
 		fi
 
 		if [ "${CLI}" = 0 ]; then
