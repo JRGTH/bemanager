@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.8.7b"
+VERSION="0.8.8b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -949,7 +949,7 @@ menu_select_be()
 	fi
 
 	eval "dialog --backtitle '${PRD_NAME} ${VERSION} for ${APP_VERSION}' --title 'Select Boot Environment' \
-		--radiolist 'Select any ${ITEM} you which to ${TOPIC}, use [up] [down] keys to navigate the menu then select a item with the [spacebar].' \
+		--radiolist 'Select any ${ITEM} you wish to ${TOPIC}, use [up] [down] keys to navigate the menu then select a item with the [spacebar].' \
 		${menuheight} 80 ${items} ${list}" \
 		2>${TMPFILE}
 	if [ $? -ne 0 ]; then
