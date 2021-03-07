@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.8.9b"
+VERSION="0.9.0b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -152,7 +152,7 @@ EOF
 		# Use --inputbox here to allow input scrolling.
 
 		# Remove config file on various signals.
-		trap "rm -f ${CONFIG_FILE}" 1 2 3 5 6 9 15
+		trap "rm -f ${CONFIG_FILE}" 1 2 5 15
 
 		# Ask for the full path for storing Boot Environments files.
 		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Boot Environments Backup Path" \
