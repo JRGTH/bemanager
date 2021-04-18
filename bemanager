@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.0b"
+VERSION="0.9.1b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -902,7 +902,7 @@ menu_backup_mode()
 get_be_status()
 {
 	# Get Boot Environments status information.
-	BOOTENV_STATUS=$(${ZBE_COMMAND} list -H | awk '{ print $1,$2,$3 }' | grep -F ${BE} | awk '{ print $2,$3 }')
+	BOOTENV_STATUS=$(${ZBE_COMMAND} list -H | awk '{ print $1,$2,$3,$5 }' | grep -F ${BE} | awk '{ print $2,$3,$4 }')
 }
 
 get_be_list()
