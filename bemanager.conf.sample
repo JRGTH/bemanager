@@ -1,16 +1,25 @@
 # Run-time configuration file for bemanager.
 # Auto-generated file from bemanager.
 
-# Set the preferred zfs boot environments management utility, e.g. "beadm".
+# Set the preferred zfs boot environments management utility, e.g. "beadm", empty defaults to bectl.
 ZFS_BE_MANAGER=""
+
+# Set a custom name prefix for the restored boot environment, default is "restore-XXXX-XX-XX-XXXXXX", date is always appended.
+RESTORE_NAME_PREFIX=""
+
+# Set a custom boot environment name postfix for the mountpoint, default is "_BE".
+MOUNTPOINT_NAME_POSTFIX=""
+
+# Set the preferred compression utility, set between "xz" or "gzip", empty defaults to xz.
+COMPRESSION_UTILITY="gzip"
 
 # Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
 ZFS_BACKUP_PATH="/mnt/tank/zfsbackups/myserver"
 
 # Path to use for mounting boot environments, e.g. "/mnt".
-ZFS_MOUNT_PATH="/mnt/beworkdir"
+ZFS_MOUNT_PATH="/mnt/bemountpoint"
 
-# Skip backup mode dialog, set between "local" or "remote" backup modes.  
+# Skip backup mode dialog, set between "local" or "remote" backup modes.
 ZFS_BACKUP_MODE="remote"
 
 # Set zfs send extra parameters, e.g. "-v" default empty.
@@ -22,11 +31,17 @@ ZFS_RECV_PARAMS=""
 # Set SSH parameters, e.g. "root@192.168.1.250".
 SSH_NET_PARAMS="-q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@192.168.1.250"
 
-# Set custom compression method, e.g. "-9 -v --threads=0", empty for defaults.
-XZ_COMPRESS_OPTIONS="-0 -v --threads=0"
+# Set custom compression options for XZ, e.g. "-9 -v --threads=0", empty for defaults.
+XZ_COMPRESS_OPTIONS="-1 -v --threads=0"
 
-# Set custom decompression method, e.g. "-c -d -v --threads=0", empty for defaults.
-XZ_DECOMPRESS_OPTIONS="-c -d -v --threads=0"
+# Set custom decompression options for XZ, e.g. "-c -d -v", empty for defaults.
+XZ_DECOMPRESS_OPTIONS="-c -d -v"
+
+# Set custom compression options for GZIP, e.g. "-9 -v", empty for defaults.
+GZ_COMPRESS_OPTIONS="-1 -v"
+
+# Set custom decompression options for GZIP, e.g. "-k -d -c -v", empty for defaults.
+GZ_DECOMPRESS_OPTIONS="-k -d -c -v"
 
 # Display boot environments only and always take a recent snapshot before backup, empty to disable.
 UI_SIMPLE_MODE="yes"
