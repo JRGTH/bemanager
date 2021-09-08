@@ -43,4 +43,4 @@ Options:
 ```
 
 ## Notice:
-As for version `0.8.0` the configuration has changed and is no longer compatible with previous `bemanager` versions, please check the `bemanager.conf.sample` after upgrade then update current `bemanager.conf` acordingly.
+As for version `0.8.0` the configuration has changed and is no longer compatible with previous `bemanager` versions, please check the `bemanager.conf.sample` after upgrade then update current `bemanager.conf` accordingly.
