@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.9.5......Properly create the temporary file.
 0.9.4......Add RAW(no compression) export/import ability.
 0.9.3......Update and switch to case options, fix CLI backup mode.
 0.9.2......Added gzip and additional misc features, config changes/updated.

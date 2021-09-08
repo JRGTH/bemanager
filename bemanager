@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.4b"
+VERSION="0.9.5b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -108,7 +108,7 @@ elif [ -z "${BOOT_FS}" -o "${BOOT_FS}" = "-" ]; then
 fi
 
 # Create temporary file, default to /tmp.
-TMPFILE="/tmp/${SCRIPTNAME}.$$"
+TMPFILE=$(mktemp -q -t ${SCRIPTNAME})
 
 # Remove temporary file on various signals.
 trap "rm -f ${TMPFILE}" 0 1 2 5 15
