@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+0.9.3......Update and switch to case options, fix CLI backup mode.
 0.9.2......Added gzip and additional misc features, config changes/updated.
 0.9.1......Add boot environment date to the dialog.
 0.9.0......Minor changes and cleanup.

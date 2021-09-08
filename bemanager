@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.2b"
+VERSION="0.9.3b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -51,17 +51,17 @@ usage()
 {
 	echo -e "Usage: bemanager [option] [beName | beName@snap | fileName] | [local | remote]
 Options:
-      -a  Activate Boot Environment.
-      -c  Create Boot Environment.
-      -m  Mount Boot Environment.
-      -u  Unmount Boot Environment.
-      -n  Rename Boot Environment.
-      -b  Backup Boot Environment.
-      -r  Restore Boot Environment.
-      -s  Snapshot Boot Environment.
-      -d  Destroy Boot Environment.
-      -v  Display version and exit.
-      -h  Display this help message."
+      -a | --activate  Activate Boot Environment.
+      -c | --create    Create Boot Environment.
+      -m | --mount     Mount Boot Environment.
+      -u | --umount    Unmount Boot Environment.
+      -n | --rename    Rename Boot Environment.
+      -b | --backup    Backup Boot Environment.
+      -r | --restore   Restore Boot Environment.
+      -s | --snapshot  Snapshot Boot Environment.
+      -d | --destroy   Destroy Boot Environment.
+      -v | --version   Display version and exit.
+      -h | --help      Display this help message."
 }
 
 # Handle special-case commands first.
@@ -91,6 +91,7 @@ ROOT_FS=$(mount | awk '/ \/ / {print $1}')
 ZROOT_POOL=$(echo ${ROOT_FS} | awk -F '/' '{print $1}')
 BOOT_FS=$(zpool list -H -o bootfs ${ZROOT_POOL})
 ZROOT_DATASET=$(echo ${BOOT_FS} | sed 's|/[^/]*$||')
+OPTION="${1}"
 PARAM2="${2}"
 PARAM3="${3}"
 
@@ -107,7 +108,7 @@ elif [ -z "${BOOT_FS}" -o "${BOOT_FS}" = "-" ]; then
 fi
 
 # Create temporary file, default to /tmp.
-TMPFILE=/tmp/${SCRIPTNAME}.$$
+TMPFILE="/tmp/${SCRIPTNAME}.$$"
 
 # Remove temporary file on various signals.
 trap "rm -f ${TMPFILE}" 0 1 2 5 15
@@ -248,7 +249,7 @@ runtime_variables()
 		DECOMPRESS_OPTIONS_GZ=$(sysrc -f ${CONFIG_FILE} -qn GZ_DECOMPRESS_OPTIONS)
 
 		if [ -z "${RESTORE_NAMEPREFIX}" ]; then
-			RESTORE_NAMEPREFIX=${DEFAULT_RESTORE_NAME_PREFIX}
+			RESTORE_NAMEPREFIX="${DEFAULT_RESTORE_NAME_PREFIX}"
 		fi
 
 		if [ -z "${MOUNT_POSTFIX}" ]; then
@@ -262,7 +263,7 @@ runtime_variables()
 
 	# Set the be management command to use.
 	if [ -z "${ZBE_COMMAND}" ]; then
-		ZBE_COMMAND=${DEFAULT_ZFSBE_MANAGER}
+		ZBE_COMMAND="${DEFAULT_ZFSBE_MANAGER}"
 	fi
 	APP_VERSION=$(echo ${ZBE_COMMAND})
 
@@ -293,14 +294,14 @@ menu_activate_be()
 
 	if [ "${CLI}" = 0 ]; then
 		ITEMSTATS=1
-		BOOTENVLIST=${BOOTENV_LIST}
+		BOOTENVLIST="${BOOTENV_LIST}"
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
 			usage
 			exit 1
 		fi
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
 
 	echo
@@ -345,7 +346,7 @@ menu_create_be()
 			usage
 			exit 1
 		fi
-		BOOTENV_NAME=${PARAM2}
+		BOOTENV_NAME="${PARAM2}"
 	fi
 
 	echo
@@ -384,14 +385,14 @@ menu_mount_be()
 
 	if [ "${CLI}" = 0 ]; then
 		ITEMSTATS=1
-		BOOTENVLIST=${BOOTENV_LIST}
+		BOOTENVLIST="${BOOTENV_LIST}"
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
 			usage
 			exit 1
 		fi
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
 
 	echo
@@ -445,14 +446,14 @@ menu_umount_be()
 
 	if [ "${CLI}" = 0 ]; then
 		ITEMSTATS=1
-		BOOTENVLIST=${BOOTENV_LIST}
+		BOOTENVLIST="${BOOTENV_LIST}"
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
 			usage
 			exit 1
 		fi
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
 
 	echo
@@ -505,7 +506,7 @@ menu_rename_be()
 
 	if [ "${CLI}" = 0 ]; then
 		ITEMSTATS=1
-		BOOTENVLIST=${BOOTENV_LIST}
+		BOOTENVLIST="${BOOTENV_LIST}"
 		menu_select_be
 		TITLE="\nPlease enter a new Boot Environment name for ${BOOTENV_ITEM}."
 		menu_be_name
@@ -514,8 +515,8 @@ menu_rename_be()
 			usage
 			exit 1
 		fi
-		BOOTENV_ITEM=${PARAM2}
-		BOOTENV_NAME=${PARAM3}
+		BOOTENV_ITEM="${PARAM2}"
+		BOOTENV_NAME="${PARAM3}"
 	fi
 
 	echo
@@ -561,18 +562,18 @@ menu_backup_be()
 		if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
 			ITEM="Boot Environment"
 			ITEMSTATS=1
-			BOOTENVLIST=${BOOTENV_LIST}
+			BOOTENVLIST="${BOOTENV_LIST}"
 		else
 			ITEM="Boot Environment@Snapshot"
 			ITEMSTATS=0
-			BOOTENVLIST=${ZROOTSNAP_LIST}
+			BOOTENVLIST="${ZROOTSNAP_LIST}"
 		fi
 
 		menu_select_be
 	else
 		# Check for user defined parameters.
 		if [ -z "${PARAM3}" ]; then
-			PARAM3=${ZFSBACKUP_MODE}
+			PARAM3="${ZFSBACKUP_MODE}"
 		fi
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
 			usage
@@ -587,60 +588,59 @@ menu_backup_be()
 			exit 1
 		fi
 		backup_dir_check
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
+
+	# Set the compression utility.
+	case "${COMPRESS_UTILITY}" in
+		gz|GZ|gzip|GZIP)
+			COMPRESS_METHOD="gz"
+			ARCHIVE_EXT="gz"
+			;;
+		xz|XZ)
+			COMPRESS_METHOD="xz"
+			ARCHIVE_EXT="xz"
+			;;
+		*)
+			COMPRESS_METHOD="xz"
+			ARCHIVE_EXT="xz"
+			;;
+	esac
 
 	# Check if simple backup mode is enabled.
 	if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
-		TOPIC="snapshot"
+		TOPIC2="snapshot"
 		get_current_date
 		echo
-		echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
+		echo "=> Attempting to ${TOPIC2} ${BOOTENV_ITEM} Boot Environment..."
 		RETURN=1
-
-		# Set the compression utility.
-		case "${COMPRESS_UTILITY}" in
-			gz|GZ|gzip|GZIP)
-				COMPRESS_METHOD="gz"
-				ARCHIVE_EXT="gz"
-				;;
-			xz|XZ)
-				COMPRESS_METHOD="xz"
-				ARCHIVE_EXT="xz"
-				;;
-			*)
-				COMPRESS_METHOD="xz"
-				ARCHIVE_EXT="xz"
-				;;
-		esac
 
 		# Temporary snapshot selected Boot Environment
 		${ZBE_COMMAND} create ${BOOTENV_ITEM}@${DATE}
 
 		RETURN=$?
 		if [ "${RETURN}" -eq 0 ]; then
-			msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC} successfully!"
+			msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC2} successfully!"
 			echo ${msg}
 			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 		else
-			msg="Error: Unable to ${TOPIC} ${BOOTENV_ITEM} Boot Environment."
+			msg="Error: Unable to ${TOPIC2} ${BOOTENV_ITEM} Boot Environment."
 			echo ${msg}
 			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 			exit 1
 		fi
 		# Send compressed be/snapshot to file.
-		BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
-		BE_TARGET=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}
-		BACKUPNAME=${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}
+		BE_SOURCE="${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}"
+		BE_TARGET="${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}"
+		BACKUPNAME="${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}"
 	else
 		generate_backup_name
 		# Send compressed be/snapshot to file.
-		BE_SOURCE=${ZROOT_DATASET}/${BOOTENV_ITEM}
-		BE_TARGET=${ZFSBACKUP_PATH}/${BEBACKUP_NAME}
-		BACKUPNAME=${BEBACKUP_NAME}
+		BE_SOURCE="${ZROOT_DATASET}/${BOOTENV_ITEM}"
+		BE_TARGET="${ZFSBACKUP_PATH}/${BEBACKUP_NAME}"
+		BACKUPNAME="${BEBACKUP_NAME}"
 	fi
 
-	TOPIC="backup"
 	echo
 	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
 	RETURN=1
@@ -648,11 +648,11 @@ menu_backup_be()
 	# Set the compression method/options.
 	if [ "${COMPRESS_METHOD}" = "xz" ]; then
 		if [ -z "${COMPRESS_OPTIONS_XZ}" ]; then
-			COMPRESS_OPTIONS_XZ=${DEFAULT_COMPRESS_XZ}
+			COMPRESS_OPTIONS_XZ="${DEFAULT_COMPRESS_XZ}"
 		fi
 	elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 		if [ -z "${COMPRESS_OPTIONS_GZ}" ]; then
-			COMPRESS_OPTIONS_GZ=${DEFAULT_COMPRESS_GZ}
+			COMPRESS_OPTIONS_GZ="${DEFAULT_COMPRESS_GZ}"
 		fi
 	fi
 
@@ -722,7 +722,7 @@ menu_restore_be()
 {
 	ITEM="Boot Environment file"
 	TOPIC="restore"
-	RESTORE_NAME=${RESTORE_NAMEPREFIX}
+	RESTORE_NAME="${RESTORE_NAMEPREFIX}"
 
 	if [ "${CLI}" = 0 ]; then
 		# Ask for backup mode and check directory.
@@ -730,12 +730,12 @@ menu_restore_be()
 		backup_dir_check
 
 		ITEMSTATS=0
-		BOOTENVLIST=${ZFSBACKUP_DIR}
+		BOOTENVLIST="${ZFSBACKUP_DIR}"
 		menu_select_be
 	else
 		# Check for user defined parameters.
 		if [ -z "${PARAM3}" ]; then
-			PARAM3=${ZFSBACKUP_MODE}
+			PARAM3="${ZFSBACKUP_MODE}"
 		fi
 		if [ -z "${PARAM2}" ] || [ -z "${PARAM3}" ]; then
 			usage
@@ -750,7 +750,7 @@ menu_restore_be()
 			exit 1
 		fi
 		backup_dir_check
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
 
 	get_current_date
@@ -760,28 +760,28 @@ menu_restore_be()
 	RETURN=1
 
 	# Receive compressed be/snapshot from file.
-	BE_SOURCE=${ZFSBACKUP_PATH}/${BOOTENV_ITEM}
-	BE_TARGET=${ZROOT_DATASET}/${RESTORE_NAME}-${DATE}@${DATE}
+	BE_SOURCE="${ZFSBACKUP_PATH}/${BOOTENV_ITEM}"
+	BE_TARGET="${ZROOT_DATASET}/${RESTORE_NAME}-${DATE}@${DATE}"
 
 	# Set the decompression method/options.
 	case "${BOOTENV_ITEM}" in
 		*.xz)
 			DECOMPRESS_METHOD="xz"
 			if [ -z "${DECOMPRESS_OPTIONS_XZ}" ]; then
-				DECOMPRESS_OPTIONS_XZ=${DEFAULT_DECOMPRESS_XZ}
+				DECOMPRESS_OPTIONS_XZ="${DEFAULT_DECOMPRESS_XZ}"
 			fi
 			;;
 		*.gz)
 			DECOMPRESS_METHOD="gz"
 			if [ -z "${DECOMPRESS_OPTIONS_GZ}" ]; then
-				DECOMPRESS_OPTIONS_GZ=${DEFAULT_DECOMPRESS_GZ}
+				DECOMPRESS_OPTIONS_GZ="${DEFAULT_DECOMPRESS_GZ}"
 			fi
 			;;
 		*.zfs)
 			# This is for backward compatibility with previous versions, may be deprecated soon.
 			DECOMPRESS_METHOD="xz"
 			if [ -z "${DECOMPRESS_OPTIONS_XZ}" ]; then
-				DECOMPRESS_OPTIONS_XZ=${DEFAULT_DECOMPRESS_XZ}
+				DECOMPRESS_OPTIONS_XZ="${DEFAULT_DECOMPRESS_XZ}"
 			fi
 			;;
 	esac
@@ -833,14 +833,14 @@ menu_snapshot_be()
 
 	if [ "${CLI}" = 0 ]; then
 		ITEMSTATS=1
-		BOOTENVLIST=${BOOTENV_LIST}
+		BOOTENVLIST="${BOOTENV_LIST}"
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
 			usage
 			exit 1
 		fi
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
 
 	get_current_date
@@ -880,14 +880,14 @@ menu_destroy_be()
 
 	if [ "${CLI}" = 0 ]; then
 		ITEMSTATS=1
-		BOOTENVLIST=${BOOTENV_LIST}
+		BOOTENVLIST="${BOOTENV_LIST}"
 		menu_select_be
 	else
 		if [ -z "${PARAM2}" ]; then
 			usage
 			exit 1
 		fi
-		BOOTENV_ITEM=${PARAM2}
+		BOOTENV_ITEM="${PARAM2}"
 	fi
 
 	echo
@@ -956,7 +956,7 @@ generate_backup_name()
 	# Generate the backup file name based on the seleted Boot Environment.
 	get_current_date
 	BENAME=$(echo ${BOOTENV_ITEM} | cut -d"@" -f1 | awk '{print $1}')
-	BEBACKUP_NAME=${BENAME}-${DATE}.${ARCHIVE_EXT}
+	BEBACKUP_NAME="${BENAME}-${DATE}.${ARCHIVE_EXT}"
 }
 
 get_current_date()
@@ -1106,22 +1106,22 @@ menu_main()
 	done
 }
 
-while getopts ":acmunbrsd" option; do
+if [ -n "${OPTION}" ]; then
 	# Initialize variables and execute command.
 	CLI=1
 	runtime_configuration
 
-	case "${option}" in
-		[a]) menu_activate_be;;
-		[c]) menu_create_be;;
-		[m]) menu_mount_be;;
-		[u]) menu_umount_be;;
-		[n]) menu_rename_be;;
-		[b]) menu_backup_be;;
-		[r]) menu_restore_be;;
-		[s]) menu_snapshot_be;;
-		[d]) menu_destroy_be;;
-		[?]) echo "Invalid option, -h for usage."; exit 1;;
+	case "${OPTION}" in
+		-a|--activate) menu_activate_be;;
+		-c|--create) menu_create_be;;
+		-m|--mount) menu_mount_be;;
+		-u|--umount) menu_umount_be;;
+		-n|--rename) menu_rename_be;;
+		-b|--backup) menu_backup_be;;
+		-r|--restore) menu_restore_be;;
+		-s|--snapshot) menu_snapshot_be;;
+		-d|--destroy) menu_destroy_be;;
+		*) echo "Invalid option, -h for usage."; exit 1;;
 	esac
-done
+fi
 menu_main

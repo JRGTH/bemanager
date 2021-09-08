@@ -26,19 +26,19 @@ fetch --no-verify-peer https://github.com/JRGTH/bemanager/archive/master.zip && 
 
 ```
 # bemanager -h
-Usage: bemanager [-option] [beName|beName@snap|fileName] | [local|remote]
+Usage: bemanager [option] [beName | beName@snap | fileName] | [local | remote]
 Options:
-      -a  Activate Boot Environment.
-      -c  Create Boot Environment.
-      -m  Mount Boot Environment.
-      -u  Unmount Boot Environment.
-      -n  Rename Boot Environment.
-      -b  Backup Boot Environment.
-      -r  Restore Boot Environment.
-      -s  Snapshot Boot Environment.
-      -d  Destroy Boot Environment.
-      -v  Display version and exit.
-      -h  Display this help message.
+      -a | --activate  Activate Boot Environment.
+      -c | --create    Create Boot Environment.
+      -m | --mount     Mount Boot Environment.
+      -u | --umount    Unmount Boot Environment.
+      -n | --rename    Rename Boot Environment.
+      -b | --backup    Backup Boot Environment.
+      -r | --restore   Restore Boot Environment.
+      -s | --snapshot  Snapshot Boot Environment.
+      -d | --destroy   Destroy Boot Environment.
+      -v | --version   Display version and exit.
+      -h | --help      Display this help message.
 #
 ```
 
