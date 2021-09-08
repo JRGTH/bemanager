@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.3b"
+VERSION="0.9.4b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -130,7 +130,7 @@ RESTORE_NAME_PREFIX=""
 # Set a custom boot environment name postfix for the mountpoint, default is "_BE".
 MOUNTPOINT_NAME_POSTFIX=""
 
-# Set the preferred compression utility, set between "xz" or "gzip", empty defaults to xz.
+# Set the preferred compression utility, set between "xz", "gzip" or "raw"(no compress), empty defaults to xz.
 COMPRESS_UTILITY=""
 
 # Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
@@ -595,15 +595,19 @@ menu_backup_be()
 	case "${COMPRESS_UTILITY}" in
 		gz|GZ|gzip|GZIP)
 			COMPRESS_METHOD="gz"
-			ARCHIVE_EXT="gz"
+			ARCHIVE_EXT=".gz"
 			;;
 		xz|XZ)
 			COMPRESS_METHOD="xz"
-			ARCHIVE_EXT="xz"
+			ARCHIVE_EXT=".xz"
+			;;
+		raw|RAW)
+			COMPRESS_METHOD="raw"
+			ARCHIVE_EXT=""
 			;;
 		*)
 			COMPRESS_METHOD="xz"
-			ARCHIVE_EXT="xz"
+			ARCHIVE_EXT=".xz"
 			;;
 	esac
 
@@ -631,8 +635,8 @@ menu_backup_be()
 		fi
 		# Send compressed be/snapshot to file.
 		BE_SOURCE="${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}"
-		BE_TARGET="${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}"
-		BACKUPNAME="${BOOTENV_ITEM}-${DATE}.${ARCHIVE_EXT}"
+		BE_TARGET="${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}${ARCHIVE_EXT}"
+		BACKUPNAME="${BOOTENV_ITEM}-${DATE}${ARCHIVE_EXT}"
 	else
 		generate_backup_name
 		# Send compressed be/snapshot to file.
@@ -662,6 +666,8 @@ menu_backup_be()
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | xz ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}
 		elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | gzip ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}
+		elif [ "${COMPRESS_METHOD}" = "raw" ]; then
+			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} > ${BE_TARGET}
 		fi
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		# Network backup target file.
@@ -670,6 +676,8 @@ menu_backup_be()
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "xz ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}"
 		elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "gzip ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}"
+		elif [ "${COMPRESS_METHOD}" = "raw" ]; then
+			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "cat > ${BE_TARGET}"
 		fi
 	fi
 
@@ -784,6 +792,9 @@ menu_restore_be()
 				DECOMPRESS_OPTIONS_XZ="${DEFAULT_DECOMPRESS_XZ}"
 			fi
 			;;
+		*)
+			DECOMPRESS_METHOD="raw"
+			;;
 	esac
 
 	if [ "${BACKUP_MODE}" = 1 ]; then
@@ -792,6 +803,8 @@ menu_restore_be()
 			xz ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "gz" ]; then
 			gzip ${DECOMPRESS_OPTIONS_GZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+		elif [ "${DECOMPRESS_METHOD}" = "raw" ]; then
+			zfs receive ${ZFS_RECVPARAM} ${BE_TARGET} < ${BE_SOURCE}
 		fi
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		# Remote restore from file.
@@ -800,6 +813,8 @@ menu_restore_be()
 			${SSH_CMD} "xz ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "gz" ]; then
 			${SSH_CMD} "gzip ${DECOMPRESS_OPTIONS_GZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+		elif [ "${DECOMPRESS_METHOD}" = "raw" ]; then
+			${SSH_CMD} "cat < ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		fi
 	fi
 
@@ -932,7 +947,7 @@ backup_dir_check()
 			echo "Please make sure the backup path exist and is accessible."
 			exit 1
 		fi
-		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH} | grep -E "*.gz|*.xz|*.zfs" || true)
+		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH} | grep -E "*.gz$|*.xz$|*.zfs$|*-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}$" || true)
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		if [ -z "${SSH_PARAMS}" ]; then
 			echo "Error: SSH parameters are undefined."
@@ -945,7 +960,7 @@ backup_dir_check()
 				echo "Please make sure the network path exist and is accessible on the remote host."
 				exit 1
 			else
-				ZFSBACKUP_DIR=$(${SSH_CMD} "ls ${ZFSBACKUP_PATH}" | grep -E "*.gz|*.xz|*.zfs" || true)
+				ZFSBACKUP_DIR=$(${SSH_CMD} "ls ${ZFSBACKUP_PATH}" | grep -E "*.gz$|*.xz$|*.zfs$|*-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}$" || true)
 			fi
 		fi
 	fi
@@ -956,7 +971,7 @@ generate_backup_name()
 	# Generate the backup file name based on the seleted Boot Environment.
 	get_current_date
 	BENAME=$(echo ${BOOTENV_ITEM} | cut -d"@" -f1 | awk '{print $1}')
-	BEBACKUP_NAME="${BENAME}-${DATE}.${ARCHIVE_EXT}"
+	BEBACKUP_NAME="${BENAME}-${DATE}${ARCHIVE_EXT}"
 }
 
 get_current_date()

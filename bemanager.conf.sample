@@ -10,7 +10,7 @@ RESTORE_NAME_PREFIX=""
 # Set a custom boot environment name postfix for the mountpoint, default is "_BE".
 MOUNTPOINT_NAME_POSTFIX=""
 
-# Set the preferred compression utility, set between "xz" or "gzip", empty defaults to xz.
+# Set the preferred compression utility, set between "xz", "gzip" or "raw"(no compress), empty defaults to xz.
 COMPRESSION_UTILITY="gzip"
 
 # Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
