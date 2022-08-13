@@ -2,7 +2,7 @@
 
 FreeBSD utility to manage, backup, and restore Boot Environments on ZFS filesystems from an easy to use Text User Interface(TUI), bemanager is actually a wrapper around the well known FreeBSD [beadm](https://www.freebsd.org/cgi/man.cgi?query=beadm) and [bectl](https://www.freebsd.org/cgi/man.cgi?query=bectl) utilities.
 
-The utility also uses the default zfs send/receive commands for BootEnvironment@Snapshot backup and restoration to/from either local or remote storage with XZ compression.
+The utility also uses the default zfs send/receive commands for BootEnvironment@Snapshot backup and restoration to/from either local or remote storage with either XZ or GZIP compression or RAW images.
 
 Please note that this utility is not intended to be a replacement for the previously mentioned utilities, but rather for the ease of some common task on demand.
 
