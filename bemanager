@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.6b"
+VERSION="0.9.7b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -131,7 +131,7 @@ RESTORE_NAME_PREFIX=""
 MOUNTPOINT_NAME_POSTFIX=""
 
 # Set the preferred compression utility, set between "xz", "gzip" or "raw"(no compress), empty defaults to xz.
-COMPRESS_UTILITY=""
+COMPRESSION_UTILITY=""
 
 # Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
 ZFS_BACKUP_PATH=""
