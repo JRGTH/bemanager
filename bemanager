@@ -82,8 +82,14 @@ PRD_NAME="Boot Environments Manager"
 DEFAULT_ZFSBE_MANAGER="bectl"
 DEFAULT_RESTORE_NAME_PREFIX="restore"
 DEFAULT_COMPRESS="xz"
-DEFAULT_COMPRESS_XZ="-0 -v"
-DEFAULT_DECOMPRESS_XZ="-c -d -v"
+#DEFAULT_COMPRESS_XZ="-0 -v"
+#DEFAULT_DECOMPRESS_XZ="-c -d -v"
+
+DEFAULT_COMPRESS_XZ=""
+DEFAULT_DECOMPRESS_XZ="-d"
+
+
+
 DEFAULT_COMPRESS_GZ="-1 -v"
 DEFAULT_DECOMPRESS_GZ="-k -d -c -v"
 DEFAULT_MOUNT_POSTFIX="_BE"
@@ -599,7 +605,7 @@ menu_backup_be()
 			;;
 		xz|XZ)
 			COMPRESS_METHOD="xz"
-			ARCHIVE_EXT=".xz"
+			ARCHIVE_EXT=".zst"
 			;;
 		raw|RAW)
 			COMPRESS_METHOD="raw"
@@ -607,7 +613,7 @@ menu_backup_be()
 			;;
 		*)
 			COMPRESS_METHOD="xz"
-			ARCHIVE_EXT=".xz"
+			ARCHIVE_EXT=".zst"
 			;;
 	esac
 
@@ -663,7 +669,7 @@ menu_backup_be()
 	if [ "${BACKUP_MODE}" = 1 ]; then
 		# Local backup target file.
 		if [ "${COMPRESS_METHOD}" = "xz" ]; then
-			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | xz ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}
+			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | zstd ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}
 		elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | gzip ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}
 		elif [ "${COMPRESS_METHOD}" = "raw" ]; then
@@ -673,7 +679,7 @@ menu_backup_be()
 		# Network backup target file.
 		echo "Saving to network location, this might take a while please wait..."
 		if [ "${COMPRESS_METHOD}" = "xz" ]; then
-			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "xz ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}"
+			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "zstd ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}"
 		elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "gzip ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}"
 		elif [ "${COMPRESS_METHOD}" = "raw" ]; then
@@ -773,7 +779,7 @@ menu_restore_be()
 
 	# Set the decompression method/options.
 	case "${BOOTENV_ITEM}" in
-		*.xz)
+		*.zst)
 			DECOMPRESS_METHOD="xz"
 			if [ -z "${DECOMPRESS_OPTIONS_XZ}" ]; then
 				DECOMPRESS_OPTIONS_XZ="${DEFAULT_DECOMPRESS_XZ}"
@@ -800,7 +806,7 @@ menu_restore_be()
 	if [ "${BACKUP_MODE}" = 1 ]; then
 		# Local restore from file.
 		if [ "${DECOMPRESS_METHOD}" = "xz" ]; then
-			xz ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+			zstd ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "gz" ]; then
 			gzip ${DECOMPRESS_OPTIONS_GZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "raw" ]; then
@@ -810,7 +816,7 @@ menu_restore_be()
 		# Remote restore from file.
 		echo "Restoring from network location, this might take a while please wait..."
 		if [ "${DECOMPRESS_METHOD}" = "xz" ]; then
-			${SSH_CMD} "xz ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+			${SSH_CMD} "zstd ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "gz" ]; then
 			${SSH_CMD} "gzip ${DECOMPRESS_OPTIONS_GZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "raw" ]; then
