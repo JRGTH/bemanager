@@ -42,6 +42,3 @@ GZ_COMPRESS_OPTIONS="-1 -v"
 
 # Set custom decompression options for GZIP, e.g. "-k -d -c -v", empty for defaults.
 GZ_DECOMPRESS_OPTIONS="-k -d -c -v"
-
-# Display boot environments only and always take a recent snapshot before backup, empty to disable.
-UI_SIMPLE_MODE="yes"

@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.7b"
+VERSION="0.9.8b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -162,9 +162,6 @@ GZ_COMPRESS_OPTIONS=""
 
 # Set custom decompression options for GZIP, e.g. "-k -d -c -v", empty for defaults.
 GZ_DECOMPRESS_OPTIONS=""
-
-# Display boot environments only and always take a recent snapshot before backup, empty to disable.
-UI_SIMPLE_MODE=""
 EOF
 
 		# Start the initial configuration dialog helper.
@@ -191,14 +188,6 @@ EOF
 		2>${TMPFILE}
 		SSHPARAMS=$(cat ${TMPFILE})
 
-		# Ask for utility usage mode.
-		dialog --backtitle "${PRD_NAME} ${VERSION} for ${APP_VERSION}" --title "Backups in simple mode" \
-		--radiolist "Show boot environments only and take a recent snapshot before backup?" 10 70 4 \
-		1 "Yes, Simple backup mode." on \
-		2 "No, Advanced backup mode." off \
-		2>${TMPFILE}
-		SIMPLEMODE=$(cat ${TMPFILE})
-
 		# Write configuration file.
 		echo "Generating initial configuration..."
 		if [ -n "${BACKUPPATH}" ]; then
@@ -219,11 +208,6 @@ EOF
 		fi
 		if [ -n "${SSHPARAMS}" ]; then
 			sysrc -f ${CONFIG_FILE} SSH_NET_PARAMS="${SSHPARAMS}"
-		fi
-		if [ "${SIMPLEMODE}" = 1 ]; then
-			sysrc -f ${CONFIG_FILE} UI_SIMPLE_MODE="yes"
-		elif [ "${SIMPLEMODE}" = 2 ]; then
-			sysrc -f ${CONFIG_FILE} UI_SIMPLE_MODE=""
 		fi
 	fi
 	runtime_variables
@@ -257,7 +241,6 @@ runtime_variables()
 		fi
 
 		SSH_CMD="ssh ${SSH_PARAMS}"
-		UI_MODE=$(sysrc -f ${CONFIG_FILE} -qn UI_SIMPLE_MODE)
 		RUNTIMEVAR=1
 	fi
 
@@ -283,8 +266,6 @@ initialize_variables()
 {
 	# Always update this variables.
 	BOOTENV_LIST=$(${ZBE_COMMAND} list -H | awk '{print $1}')
-	#ZROOTSNAP_LIST=$(zfs list -H -r -t snapshot ${BOOT_FS} | cut -d'/' -f3 | awk '{print $1}')
-	ZROOTSNAP_LIST=$(zfs list -H -r -t snapshot ${ZROOT_DATASET} | cut -d'/' -f3 | awk '{print $1}')
 }
 
 menu_activate_be()
@@ -558,16 +539,9 @@ menu_backup_be()
 		menu_backup_mode
 		backup_dir_check
 
-		# Check if simple backup mode is enabled.
-		if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
-			ITEM="Boot Environment"
-			ITEMSTATS=1
-			BOOTENVLIST="${BOOTENV_LIST}"
-		else
-			ITEM="Boot Environment@Snapshot"
-			ITEMSTATS=0
-			BOOTENVLIST="${ZROOTSNAP_LIST}"
-		fi
+		ITEM="Boot Environment"
+		ITEMSTATS=1
+		BOOTENVLIST="${BOOTENV_LIST}"
 
 		menu_select_be
 	else
@@ -611,39 +585,30 @@ menu_backup_be()
 			;;
 	esac
 
-	# Check if simple backup mode is enabled.
-	if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
-		TOPIC2="snapshot"
-		get_current_date
-		echo
-		echo "=> Attempting to ${TOPIC2} ${BOOTENV_ITEM} Boot Environment..."
-		RETURN=1
+	TOPIC2="snapshot"
+	get_current_date
+	echo
+	echo "=> Attempting to ${TOPIC2} ${BOOTENV_ITEM} Boot Environment..."
+	RETURN=1
 
-		# Temporary snapshot selected Boot Environment
-		${ZBE_COMMAND} create ${BOOTENV_ITEM}@${DATE}
+	# Temporary snapshot the selected Boot Environment.
+	${ZBE_COMMAND} create ${BOOTENV_ITEM}@${DATE}
 
-		RETURN=$?
-		if [ "${RETURN}" -eq 0 ]; then
-			msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC2} successfully!"
-			echo ${msg}
-			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-		else
-			msg="Error: Unable to ${TOPIC2} ${BOOTENV_ITEM} Boot Environment."
-			echo ${msg}
-			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-			exit 1
-		fi
-		# Send compressed be/snapshot to file.
-		BE_SOURCE="${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}"
-		BE_TARGET="${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}${ARCHIVE_EXT}"
-		BACKUPNAME="${BOOTENV_ITEM}-${DATE}${ARCHIVE_EXT}"
+	RETURN=$?
+	if [ "${RETURN}" -eq 0 ]; then
+		msg="Boot Environment ${BOOTENV_ITEM} ${TOPIC2} successfully!"
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 	else
-		generate_backup_name
-		# Send compressed be/snapshot to file.
-		BE_SOURCE="${ZROOT_DATASET}/${BOOTENV_ITEM}"
-		BE_TARGET="${ZFSBACKUP_PATH}/${BEBACKUP_NAME}"
-		BACKUPNAME="${BEBACKUP_NAME}"
+		msg="Error: Unable to ${TOPIC2} ${BOOTENV_ITEM} Boot Environment."
+		echo ${msg}
+		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		exit 1
 	fi
+	# Send compressed be/snapshot to file.
+	BE_SOURCE="${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}"
+	BE_TARGET="${ZFSBACKUP_PATH}/${BOOTENV_ITEM}-${DATE}${ARCHIVE_EXT}"
+	BACKUPNAME="${BOOTENV_ITEM}-${DATE}${ARCHIVE_EXT}"
 
 	echo
 	echo "=> Attempting to ${TOPIC} ${BOOTENV_ITEM} Boot Environment..."
@@ -687,26 +652,24 @@ menu_backup_be()
 		echo ${msg}
 		/usr/bin/logger -t ${SCRIPTNAME} ${msg}
 
-		# Remove temporary snapshot on success on simple mode.
-		if [ "${UI_MODE}" = "yes" -o "${UI_MODE}" = "YES" ]; then
-			TOPIC="snapshot"
-			echo
-			echo "=> Attempting to cleanup recent ${BOOTENV_ITEM} Boot Environment ${TOPIC}..."
-			RETURN=1
+		# Remove temporary snapshot on success.
+		TOPIC="snapshot"
+		echo
+		echo "=> Attempting to cleanup recent ${BOOTENV_ITEM} Boot Environment ${TOPIC}..."
+		RETURN=1
 
-			zfs destroy ${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
+		zfs destroy ${ZROOT_DATASET}/${BOOTENV_ITEM}@${DATE}
 
-			RETURN=$?
-			if [ "${RETURN}" -eq 0 ]; then
-				msg="Boot Environment ${BOOTENV_ITEM} recent ${TOPIC} cleaned successfully!"
-				echo ${msg}
-				/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-			else
-				msg="Error: Unable to cleanup ${BOOTENV_ITEM} recent Boot Environment ${TOPIC}."
-				echo ${msg}
-				/usr/bin/logger -t ${SCRIPTNAME} ${msg}
-				exit 1
-			fi
+		RETURN=$?
+		if [ "${RETURN}" -eq 0 ]; then
+			msg="Boot Environment ${BOOTENV_ITEM} recent ${TOPIC} cleaned successfully!"
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+		else
+			msg="Error: Unable to cleanup ${BOOTENV_ITEM} recent Boot Environment ${TOPIC}."
+			echo ${msg}
+			/usr/bin/logger -t ${SCRIPTNAME} ${msg}
+			exit 1
 		fi
 
 		if [ "${CLI}" = 0 ]; then
