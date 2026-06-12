@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.8b"
+VERSION="0.9.9b"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -86,6 +86,8 @@ DEFAULT_COMPRESS_XZ="-0 -v"
 DEFAULT_DECOMPRESS_XZ="-c -d -v"
 DEFAULT_COMPRESS_GZ="-1 -v"
 DEFAULT_DECOMPRESS_GZ="-k -d -c -v"
+DEFAULT_COMPRESS_ZST="-3 -v"
+DEFAULT_DECOMPRESS_ZST="-k -d -c -v"
 DEFAULT_MOUNT_POSTFIX="_BE"
 ROOT_FS=$(mount | awk '/ \/ / {print $1}')
 ZROOT_POOL=$(echo ${ROOT_FS} | awk -F '/' '{print $1}')
@@ -130,7 +132,7 @@ RESTORE_NAME_PREFIX=""
 # Set a custom boot environment name postfix for the mountpoint, default is "_BE".
 MOUNTPOINT_NAME_POSTFIX=""
 
-# Set the preferred compression utility, set between "xz", "gzip" or "raw"(no compress), empty defaults to xz.
+# Set the preferred compression utility, set between "xz", "gzip", "zst" or "raw"(no compress), empty defaults to xz.
 COMPRESSION_UTILITY=""
 
 # Path where to save boot environments backup files, e.g. "/mnt/tank/zfsbackups".
@@ -162,6 +164,12 @@ GZ_COMPRESS_OPTIONS=""
 
 # Set custom decompression options for GZIP, e.g. "-k -d -c -v", empty for defaults.
 GZ_DECOMPRESS_OPTIONS=""
+
+# Set custom compression options for ZST, e.g. "-3 -v", empty for defaults.
+ZST_COMPRESS_OPTIONS=""
+
+# Set custom decompression options for ZST, e.g. "-k -d -c -v", empty for defaults.
+ZST_DECOMPRESS_OPTIONS=""
 EOF
 
 		# Start the initial configuration dialog helper.
@@ -231,6 +239,8 @@ runtime_variables()
 		DECOMPRESS_OPTIONS_XZ=$(sysrc -f ${CONFIG_FILE} -qn XZ_DECOMPRESS_OPTIONS)
 		COMPRESS_OPTIONS_GZ=$(sysrc -f ${CONFIG_FILE} -qn GZ_COMPRESS_OPTIONS)
 		DECOMPRESS_OPTIONS_GZ=$(sysrc -f ${CONFIG_FILE} -qn GZ_DECOMPRESS_OPTIONS)
+		COMPRESS_OPTIONS_ZST=$(sysrc -f ${CONFIG_FILE} -qn ZST_COMPRESS_OPTIONS)
+		DECOMPRESS_OPTIONS_ZST=$(sysrc -f ${CONFIG_FILE} -qn ZST_DECOMPRESS_OPTIONS)
 
 		if [ -z "${RESTORE_NAMEPREFIX}" ]; then
 			RESTORE_NAMEPREFIX="${DEFAULT_RESTORE_NAME_PREFIX}"
@@ -575,6 +585,10 @@ menu_backup_be()
 			COMPRESS_METHOD="xz"
 			ARCHIVE_EXT=".xz"
 			;;
+		zst|zstd|ZST|ZSTD)
+			COMPRESS_METHOD="zst"
+			ARCHIVE_EXT=".zst"
+			;;
 		raw|RAW)
 			COMPRESS_METHOD="raw"
 			ARCHIVE_EXT=""
@@ -623,6 +637,10 @@ menu_backup_be()
 		if [ -z "${COMPRESS_OPTIONS_GZ}" ]; then
 			COMPRESS_OPTIONS_GZ="${DEFAULT_COMPRESS_GZ}"
 		fi
+	elif [ "${COMPRESS_METHOD}" = "zst" ]; then
+		if [ -z "${COMPRESS_OPTIONS_ZST}" ]; then
+			COMPRESS_OPTIONS_ZST="${DEFAULT_COMPRESS_ZST}"
+		fi
 	fi
 
 	if [ "${BACKUP_MODE}" = 1 ]; then
@@ -631,6 +649,8 @@ menu_backup_be()
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | xz ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}
 		elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | gzip ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}
+		elif [ "${COMPRESS_METHOD}" = "zst" ]; then
+			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | zstd ${COMPRESS_OPTIONS_ZST} > ${BE_TARGET}
 		elif [ "${COMPRESS_METHOD}" = "raw" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} > ${BE_TARGET}
 		fi
@@ -748,6 +768,12 @@ menu_restore_be()
 				DECOMPRESS_OPTIONS_GZ="${DEFAULT_DECOMPRESS_GZ}"
 			fi
 			;;
+		*.zst)
+			DECOMPRESS_METHOD="zst"
+			if [ -z "${DECOMPRESS_OPTIONS_ZST}" ]; then
+				DECOMPRESS_OPTIONS_ZST="${DEFAULT_DECOMPRESS_ZST}"
+			fi
+			;;
 		*.zfs)
 			# This is for backward compatibility with previous versions, may be deprecated soon.
 			DECOMPRESS_METHOD="xz"
@@ -766,6 +792,8 @@ menu_restore_be()
 			xz ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "gz" ]; then
 			gzip ${DECOMPRESS_OPTIONS_GZ} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+		elif [ "${DECOMPRESS_METHOD}" = "zst" ]; then
+			zstd ${DECOMPRESS_OPTIONS_ZST} ${BE_SOURCE} | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "raw" ]; then
 			zfs receive ${ZFS_RECVPARAM} ${BE_TARGET} < ${BE_SOURCE}
 		fi
@@ -776,6 +804,8 @@ menu_restore_be()
 			${SSH_CMD} "xz ${DECOMPRESS_OPTIONS_XZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "gz" ]; then
 			${SSH_CMD} "gzip ${DECOMPRESS_OPTIONS_GZ} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
+		elif [ "${DECOMPRESS_METHOD}" = "zst" ]; then
+			${SSH_CMD} "zstd ${DECOMPRESS_OPTIONS_ZST} ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		elif [ "${DECOMPRESS_METHOD}" = "raw" ]; then
 			${SSH_CMD} "cat < ${BE_SOURCE}" | zfs receive ${ZFS_RECVPARAM} ${BE_TARGET}
 		fi
@@ -910,7 +940,7 @@ backup_dir_check()
 			echo "Please make sure the backup path exist and is accessible."
 			exit 1
 		fi
-		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH} | grep -E ".gz$|.xz$|.zfs$|-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}$" || true)
+		ZFSBACKUP_DIR=$(ls ${ZFSBACKUP_PATH} | grep -E ".gz$|.xz$|.zst$|.zfs$|-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}$" || true)
 	elif [ "${BACKUP_MODE}" = 2 ]; then
 		if [ -z "${SSH_PARAMS}" ]; then
 			echo "Error: SSH parameters are undefined."
@@ -923,7 +953,7 @@ backup_dir_check()
 				echo "Please make sure the network path exist and is accessible on the remote host."
 				exit 1
 			else
-				ZFSBACKUP_DIR=$(${SSH_CMD} "ls ${ZFSBACKUP_PATH}" | grep -E ".gz$|.xz$|.zfs$|-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}$" || true)
+				ZFSBACKUP_DIR=$(${SSH_CMD} "ls ${ZFSBACKUP_PATH}" | grep -E ".gz$|.xz$|.zst$|.zfs$|-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{6}$" || true)
 			fi
 		fi
 	fi
