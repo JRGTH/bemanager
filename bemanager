@@ -32,7 +32,7 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="0.9.9b"
+VERSION="1.0.0"
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
@@ -123,7 +123,7 @@ runtime_configuration()
 # Run-time configuration file for ${SCRIPTNAME}.
 # Auto-generated file from ${SCRIPTNAME}.
 
-# Set the preferred zfs boot environments management utility, e.g. "beadm".
+# Set the preferred zfs boot environments management utility, e.g. "beadm", empty defaults to bectl.
 ZFS_BE_MANAGER=""
 
 # Set a custom name prefix for the restored boot environment, default is "restore-XXXX-XX-XX-XXXXXX", date is always appended.
@@ -141,7 +141,7 @@ ZFS_BACKUP_PATH=""
 # Path to use for mounting boot environments, e.g. "/mnt".
 ZFS_MOUNT_PATH=""
 
-# Skip backup mode dialog, set between "local" or "remote" backup modes.  
+# Skip backup mode dialog, set between "local" or "remote" backup modes.
 ZFS_BACKUP_MODE=""
 
 # Set zfs send extra parameters, e.g. "-v" default empty.
@@ -537,7 +537,7 @@ menu_rename_be()
 		fi
 		exit 1
 	fi
-	
+
 }
 
 menu_backup_be()
@@ -661,6 +661,8 @@ menu_backup_be()
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "xz ${COMPRESS_OPTIONS_XZ} > ${BE_TARGET}"
 		elif [ "${COMPRESS_METHOD}" = "gz" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "gzip ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}"
+		elif [ "${COMPRESS_METHOD}" = "zst" ]; then
+			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "zstd ${COMPRESS_OPTIONS_GZ} > ${BE_TARGET}"
 		elif [ "${COMPRESS_METHOD}" = "raw" ]; then
 			zfs send ${ZFS_SENDPARAM} ${BE_SOURCE} | ${SSH_CMD} "cat > ${BE_TARGET}"
 		fi
@@ -995,7 +997,7 @@ menu_backup_mode()
 			exit 0
 		fi
 		BACKUP_MODE=$(cat ${TMPFILE})
-	fi	
+	fi
 }
 
 get_be_status()

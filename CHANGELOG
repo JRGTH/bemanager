@@ -4,6 +4,7 @@
 ========================================================================
 Version    Description
 
+1.0.0......Add ZSTD for fast lossless compression to remote export.
 0.9.9......Add ZSTD for fast lossless compression and export/import ability.
 0.9.8......Remove obsolete code, always show simple BE list.
 0.9.6......Fix for grep regex error.
