@@ -32,7 +32,17 @@
 PATH=${PATH}:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
 # Script version.
-VERSION="1.0.0"
+VERSION="1.0.1"
+
+# Create a 'dialog' symlink for backward compatibility.
+if [ ! "$(which dialog)" ]; then
+	if [ "$(which bsddialog)" ]; then
+		ln -s /usr/bin/bsddialog /usr/bin/dialog
+	else
+		echo "Command 'dialog' not found."
+		exit 1
+	fi
+fi
 
 # Must be root.
 if [ "$(id -u)" -ne 0 ]; then
